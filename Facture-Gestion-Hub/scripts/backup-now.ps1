@@ -23,6 +23,76 @@ function Get-StringHash([string]$value) {
   }
 }
 
+function Test-FileReadable([string]$path) {
+  try {
+    $fs = [System.IO.File]::Open($path, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
+    $fs.Close()
+    return $true
+  } catch {
+    return $false
+  }
+}
+
+function New-UploadsArchiveBestEffort([string]$sourceRoot, [string]$destinationZip) {
+  if (-not (Test-Path $sourceRoot)) {
+    return @{
+      Created = $false
+      Included = 0
+      Skipped = 0
+    }
+  }
+
+  $allFiles = Get-ChildItem -Path $sourceRoot -Recurse -File -ErrorAction SilentlyContinue
+  if (-not $allFiles -or $allFiles.Count -eq 0) {
+    return @{
+      Created = $false
+      Included = 0
+      Skipped = 0
+    }
+  }
+
+  $stageDir = Join-Path ([System.IO.Path]::GetTempPath()) ("uploads-stage-" + [Guid]::NewGuid().ToString("N"))
+  New-Item -ItemType Directory -Force -Path $stageDir | Out-Null
+
+  $included = 0
+  $skipped = 0
+  try {
+    foreach ($file in $allFiles) {
+      $full = $file.FullName
+      if (-not (Test-FileReadable $full)) {
+        $skipped++
+        continue
+      }
+      $rel = $full.Substring($sourceRoot.Length).TrimStart('\','/')
+      $target = Join-Path $stageDir $rel
+      $targetDir = Split-Path -Parent $target
+      if ($targetDir -and -not (Test-Path $targetDir)) {
+        New-Item -ItemType Directory -Force -Path $targetDir | Out-Null
+      }
+      Copy-Item -Path $full -Destination $target -Force
+      $included++
+    }
+
+    if ($included -eq 0) {
+      return @{
+        Created = $false
+        Included = 0
+        Skipped = $skipped
+      }
+    }
+
+    if (Test-Path $destinationZip) { Remove-Item $destinationZip -Force }
+    Compress-Archive -Path (Join-Path $stageDir "*") -DestinationPath $destinationZip -Force
+    return @{
+      Created = $true
+      Included = $included
+      Skipped = $skipped
+    }
+  } finally {
+    Remove-Item -Recurse -Force $stageDir -ErrorAction SilentlyContinue
+  }
+}
+
 function Load-EnvFile([string]$path) {
   if (-not (Test-Path $path)) { return }
   Get-Content $path | ForEach-Object {
@@ -155,9 +225,19 @@ if ($invoicesChanged) {
 
   if (Test-Path $uploadsRoot) {
     Write-Step "Archiving uploaded files: $uploadsZip"
-    if (Test-Path $uploadsZip) { Remove-Item $uploadsZip -Force }
-    Compress-Archive -Path (Join-Path $uploadsRoot "*") -DestinationPath $uploadsZip -Force
-    Copy-Item $uploadsZip $latestUploadsZip -Force
+    $archiveResult = New-UploadsArchiveBestEffort -sourceRoot $uploadsRoot -destinationZip $uploadsZip
+    if ($archiveResult.Created) {
+      Copy-Item $uploadsZip $latestUploadsZip -Force
+      if ($archiveResult.Skipped -gt 0) {
+        Write-Step "Uploads archived with warnings: included=$($archiveResult.Included), skipped(locked)=$($archiveResult.Skipped)"
+      }
+    } else {
+      if ($archiveResult.Skipped -gt 0) {
+        Write-Step "Uploads archive skipped: all files locked right now (skipped=$($archiveResult.Skipped)). Backup continues."
+      } else {
+        Write-Step "No uploaded files found. Skipping uploads archive."
+      }
+    }
   } else {
     Write-Step "No .local-uploads folder found. Skipping uploads archive."
   }
