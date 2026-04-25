@@ -229,7 +229,7 @@ export async function seedDatabase(): Promise<void> {
         montantDh: "6000",
         modePaiement: "virement",
         datePaiement: "03/6/2025",
-        statut: "regle",
+        statut: "paye",
         dateDeclaration: null,
       },
       {
@@ -245,7 +245,7 @@ export async function seedDatabase(): Promise<void> {
         montantDh: "5000",
         modePaiement: "virement",
         datePaiement: "03/6/2025",
-        statut: "regle",
+        statut: "paye",
         dateDeclaration: null,
       },
       {
@@ -261,7 +261,7 @@ export async function seedDatabase(): Promise<void> {
         montantDh: "6500",
         modePaiement: "virement",
         datePaiement: "03/6/2025",
-        statut: "regle",
+        statut: "paye",
         dateDeclaration: null,
       },
       {
@@ -277,7 +277,7 @@ export async function seedDatabase(): Promise<void> {
         montantDh: "3750",
         modePaiement: "virement",
         datePaiement: "04/6/2025",
-        statut: "regle",
+        statut: "paye",
         dateDeclaration: null,
       },
       {

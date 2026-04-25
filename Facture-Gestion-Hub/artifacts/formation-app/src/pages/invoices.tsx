@@ -66,9 +66,9 @@ import {
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import * as XLSX from "xlsx";
+import * as XLSX from "xlsx-js-style";
 
-type Statut = "paye" | "regle" | "en_attente";
+type Statut = "paye" | "en_attente";
 type Trimestre = "T1" | "T2" | "T3" | "T4";
 
 import { format, isSameMonth, isSameYear } from "date-fns";
@@ -107,7 +107,7 @@ const invoiceSchema = z.object({
   modePaiement: z.enum(["virement", "cheque", "espece"]).nullable().optional(),
   numeroPaiement: z.string().nullable().optional(),
   datePaiement: z.string().nullable().optional(),
-  statut: z.enum(["paye", "regle", "en_attente"]),
+  statut: z.enum(["paye", "en_attente"]),
   dateDeclaration: z.string().nullable().optional(),
   invoiceDocxUrl: z.string().nullable().optional(),
 });
@@ -116,15 +116,18 @@ type InvoiceFormValues = z.infer<typeof invoiceSchema>;
 
 const STATUT_LABELS: Record<Statut, string> = {
   paye: "Payée",
-  regle: "Réglée",
   en_attente: "En attente",
 };
 
 const STATUT_COLORS: Record<Statut, string> = {
   paye: "bg-emerald-100 text-emerald-800 border-emerald-200",
-  regle: "bg-blue-100 text-blue-800 border-blue-200",
   en_attente: "bg-amber-100 text-amber-800 border-amber-200",
 };
+
+function normalizeStatut(value: string | null | undefined): Statut {
+  if (value === "paye" || value === "regle") return "paye";
+  return "en_attente";
+}
 
 const TRIMESTRE_COLORS: Record<Trimestre, string> = {
   T1: "bg-blue-50",
@@ -282,6 +285,21 @@ export function Invoices() {
   };
 
   const handleExportExcel = () => {
+    const applyRowBackground = (ws: Record<string, any>, rowIndex: number, colorHexNoHash: string) => {
+      for (let colIndex = 0; colIndex < headers.length; colIndex += 1) {
+        const cellAddress = XLSX.utils.encode_cell({ r: rowIndex, c: colIndex });
+        const cell = ws[cellAddress];
+        if (!cell) continue;
+        cell.s = {
+          ...(cell.s || {}),
+          fill: {
+            patternType: "solid",
+            fgColor: { rgb: colorHexNoHash },
+          },
+        };
+      }
+    };
+
     const headers = [
       "Trimestre",
       "Date formation",
@@ -370,6 +388,20 @@ export function Invoices() {
       { wch: 14 }, // Impot
       { wch: 14 }, // CNSS
     ];
+
+    // Header row style (requested: #d0d0d0)
+    const headerRowIndex = 3;
+    applyRowBackground(ws as Record<string, any>, headerRowIndex, "D0D0D0");
+
+    // Data rows by status:
+    // - payé: #ffff00
+    // - en attente: #f9e2d5
+    const dataRowStartIndex = headerRowIndex + 1;
+    invoices.forEach((inv, i) => {
+      const normalized = normalizeStatut(inv.statut);
+      const color = normalized === "paye" ? "FFFF00" : "F9E2D5";
+      applyRowBackground(ws as Record<string, any>, dataRowStartIndex + i, color);
+    });
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Factures");
@@ -528,7 +560,7 @@ export function Invoices() {
       modePaiement: inv.modePaiement ?? undefined,
       numeroPaiement: inv.numeroPaiement ?? "",
       datePaiement: inv.datePaiement ?? "",
-      statut: inv.statut,
+      statut: normalizeStatut(inv.statut),
       dateDeclaration: inv.dateDeclaration ?? "",
       invoiceDocxUrl: inv.invoiceDocxUrl ?? "",
     });
@@ -777,7 +809,6 @@ export function Invoices() {
           <SelectContent>
             <SelectItem value="all">Tous statuts</SelectItem>
             <SelectItem value="paye">Payé</SelectItem>
-            <SelectItem value="regle">Réglé</SelectItem>
             <SelectItem value="en_attente">En attente</SelectItem>
           </SelectContent>
         </Select>
@@ -1061,7 +1092,6 @@ export function Invoices() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="en_attente">En attente</SelectItem>
-                        <SelectItem value="regle">Réglé</SelectItem>
                         <SelectItem value="paye">Payé</SelectItem>
                       </SelectContent>
                     </Select>

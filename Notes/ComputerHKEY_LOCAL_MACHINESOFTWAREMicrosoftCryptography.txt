@@ -1,0 +1,5 @@
+reg query "HKLM\SOFTWARE\Microsoft\Cryptography" /v MachineGuid
+
+
+
+https://chatgpt.com/share/69ecb29f-8424-83ea-9996-d54c0f2301a7
