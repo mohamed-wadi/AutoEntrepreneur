@@ -66,7 +66,7 @@ import {
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import * as XLSX from "xlsx-js-style";
+import XLSX from "xlsx-js-style";
 
 type Statut = "paye" | "en_attente";
 type Trimestre = "T1" | "T2" | "T3" | "T4";

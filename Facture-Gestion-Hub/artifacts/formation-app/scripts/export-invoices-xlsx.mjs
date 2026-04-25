@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import * as XLSX from "xlsx";
+import XLSX from "xlsx-js-style";
 
 const OUTPUT_DIR = process.env.REGISTRES_OUTPUT_DIR ?? "backups/registres";
 const STAMP = process.env.EXPORT_STAMP;
@@ -35,9 +35,13 @@ const headers = [
 
 const statusLabel = {
   paye: "Payée",
-  regle: "Réglée",
+  regle: "Payée",
   en_attente: "En attente",
 };
+
+function normalizeStatus(status) {
+  return status === "paye" || status === "regle" ? "paye" : "en_attente";
+}
 
 function formatMoney(v) {
   const n = Number(v ?? 0);
@@ -90,6 +94,21 @@ FROM (
 }
 
 function buildWorkbook(rows, year, tri) {
+  const applyRowBackground = (ws, rowIndex, colorHexNoHash) => {
+    for (let colIndex = 0; colIndex < headers.length; colIndex += 1) {
+      const cellAddress = XLSX.utils.encode_cell({ r: rowIndex, c: colIndex });
+      const cell = ws[cellAddress];
+      if (!cell) continue;
+      cell.s = {
+        ...(cell.s || {}),
+        fill: {
+          patternType: "solid",
+          fgColor: { rgb: colorHexNoHash },
+        },
+      };
+    }
+  };
+
   const totalMontant = rows.reduce((s, r) => s + Number(r.montantDh ?? 0), 0);
   const totalImpot = rows.reduce((s, r) => s + Number(r.impotAPayer ?? Number(r.montantDh) * 0.01), 0);
   const totalCnss = rows.reduce((s, r) => s + Number(r.cnss ?? Number(r.montantDh) * 0.031), 0);
@@ -134,6 +153,20 @@ function buildWorkbook(rows, year, tri) {
     { wch: 14 }, { wch: 16 }, { wch: 20 }, { wch: 14 },
     { wch: 12 }, { wch: 16 }, { wch: 14 }, { wch: 14 },
   ];
+
+  // Header row color: #d0d0d0
+  const headerRowIndex = 3;
+  applyRowBackground(ws, headerRowIndex, "D0D0D0");
+
+  // Data row colors:
+  // - payé: #ffff00
+  // - en attente: #f9e2d5
+  const dataRowStartIndex = headerRowIndex + 1;
+  rows.forEach((r, i) => {
+    const normalized = normalizeStatus(r.statut);
+    const color = normalized === "paye" ? "FFFF00" : "F9E2D5";
+    applyRowBackground(ws, dataRowStartIndex + i, color);
+  });
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Factures");
