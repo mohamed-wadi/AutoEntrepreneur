@@ -26,6 +26,8 @@ services:
       TWO_FACTOR_ENCRYPTION_KEY: local-dev-twofactor-secret
       NODE_ENV: development
       CORS_ORIGINS: http://localhost:19509,http://127.0.0.1:19509
+      SYNC_DEFAULT_CATALOGS: "false"
+      SYNC_DEFAULT_CABINETS: "false"
     ports:
       - "8080:8080"
     # Push schema then start the server

@@ -299,10 +299,21 @@ export async function seedDatabase(): Promise<void> {
     logger.info("Sample invoices seeded");
   }
 
-  await ensureDefaultCatalogEntries();
-  await pruneNonDefaultCatalogEntries();
+  // IMPORTANT:
+  // Keep user changes in Formations by default.
+  // If you explicitly want to enforce the official list on each startup,
+  // set SYNC_DEFAULT_CATALOGS=true.
+  if (process.env.SYNC_DEFAULT_CATALOGS?.trim() === "true") {
+    await ensureDefaultCatalogEntries();
+    await pruneNonDefaultCatalogEntries();
+  }
 
-  // Cabinets (clients) – liste officielle + dédoublonnage
-  await ensureDefaultCabinets();
-  await dedupeCabinetsByName();
+  // Cabinets (clients):
+  // Keep user changes by default.
+  // If you explicitly want to enforce the default cabinet list on startup,
+  // set SYNC_DEFAULT_CABINETS=true.
+  if (process.env.SYNC_DEFAULT_CABINETS?.trim() === "true") {
+    await ensureDefaultCabinets();
+    await dedupeCabinetsByName();
+  }
 }

@@ -31,6 +31,17 @@ Attends que les services soient `healthy`, puis ouvre :
 docker compose down
 ```
 
+## Accès Internet (Cloudflare) — 1 seul .bat
+
+### URL stable (recommandé)
+
+1. Copier `cloudflare-tunnel.env.example` vers `cloudflare-tunnel.env` et remplir :
+   - `TUNNEL_NAME`
+   - `TUNNEL_HOSTNAME` (ex: `app.mondomaine.com`)
+2. Double-clic `Cloudflare-NamedTunnel.bat`
+
+La première fois, le script te demandera de te connecter à Cloudflare (navigateur), puis créera le tunnel + la route DNS. Les fois suivantes, il démarre juste le site et le tunnel.
+
 ## Backups non chiffrés + Google Drive
 
 Le projet inclut des scripts pour sauvegarder PostgreSQL en `.dump` non chiffré dans `./backups`, puis copier vers Google Drive via `rclone`.
