@@ -1,0 +1,25 @@
+Oui, tu peux tester proprement et vérifier que ces 2 fichiers restaurent bien les factures.
+
+Voici la procédure exacte (copier/coller), en mode test sécurisé.
+
+1) Vérifier l’intégrité du dump
+Depuis la racine du projet :
+
+cd "C:\Users\moham\OneDrive\Bureau\Auto Entrepreneur\Facture-Gestion-Hub\backups"
+Get-FileHash -Algorithm SHA256 .\facture_db_2026-04-25_11-45-55.dump
+Get-Content .\facture_db_2026-04-25_11-45-55.dump.sha256
+Les 2 hash doivent être identiques.
+
+2) Démarrer la DB
+cd "C:\Users\moham\OneDrive\Bureau\Auto Entrepreneur\Facture-Gestion-Hub"
+docker compose up -d db
+3) Restaurer depuis ce dump précis
+docker cp ".\backups\facture_db_2026-04-25_11-45-55.dump" facture-gestion-hub-db-1:/tmp/restore.dump
+docker compose exec -T db sh -lc "PGPASSWORD=adminpassword pg_restore -U admin -d facture_db --clean --if-exists /tmp/restore.dump"
+4) Redémarrer l’app et vérifier
+docker compose up -d api web
+Ouvre http://localhost:19509/invoices et vérifie que les factures reviennent.
+
+5) Contrôle SQL rapide (optionnel)
+docker compose exec -T db sh -lc "PGPASSWORD=adminpassword psql -U admin -d facture_db -c 'select count(*) from invoices;'"
+Si tu veux, après que tu supprimes les factures, je peux te guider en live étape par étape pendant la restauration pour confirmer que tout revient exactement.

@@ -1,0 +1,65 @@
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: adminpassword
+      POSTGRES_DB: facture_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d facture_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgres://admin:adminpassword@db:5432/facture_db
+      PORT: 8080
+      SESSION_SECRET: mysecret-docker-dev-2025
+      TWO_FACTOR_ENCRYPTION_KEY: local-dev-twofactor-secret
+      NODE_ENV: development
+      CORS_ORIGINS: http://localhost:19509,http://127.0.0.1:19509
+    ports:
+      - "8080:8080"
+    # Push schema then start the server
+    command: >
+      sh -c "
+        cd /app/lib/db &&
+        DATABASE_URL=postgres://admin:adminpassword@db:5432/facture_db
+        npx drizzle-kit push --config drizzle.config.ts &&
+        cd /app/artifacts/api-server &&
+        pnpm run dev
+      "
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      PORT: 19509
+      BASE_PATH: /
+      VITE_API_PROXY_TARGET: http://api:8080
+    ports:
+      - "19509:19509"
+    # Use your machine’s source so UI changes (logo, etc.) apply without rebuilding the image.
+    volumes:
+      - ./artifacts/formation-app/src:/app/artifacts/formation-app/src
+      - ./artifacts/formation-app/public:/app/artifacts/formation-app/public
+      - ./artifacts/formation-app/index.html:/app/artifacts/formation-app/index.html
+      - ./artifacts/formation-app/vite.config.ts:/app/artifacts/formation-app/vite.config.ts
+    command: sh -c "cd /app/artifacts/formation-app && pnpm run dev"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:

@@ -1,0 +1,248 @@
+Excellent, la config rclone est parfaite ✅ (gdrive créé).
+
+Maintenant exécute ces commandes :
+
+cd "C:\Users\moham\OneDrive\Bureau\Auto Entrepreneur\Facture-Gestion-Hub"
+copy backup.env.example backup.env
+notepad backup.env
+Dans backup.env, vérifie au minimum :
+
+BACKUP_ENABLED=true
+POSTGRES_USER=admin
+POSTGRES_PASSWORD=adminpassword
+POSTGRES_DB=facture_db
+BACKUP_KEEP_LOCAL=30
+GDRIVE_UPLOAD=true
+GDRIVE_REMOTE=gdrive:
+GDRIVE_FOLDER_ID=1QXvBAVteXNnWl-wXuWXuqMNt3K9HIxvg
+Ensuite, test complet :
+
+docker compose up -d --build
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\backup-now.ps1
+Vérifier que le fichier est bien sur ton dossier Drive :
+
+rclone ls gdrive: --drive-root-folder-id 1QXvBAVteXNnWl-wXuWXuqMNt3K9HIxvg
+Tu dois voir latest.dump + facture_db_...dump.
+
+Pour fermer le site avec sauvegarde finale automatique :
+
+.\ARRETER-ET-SAUVEGARDER.bat
+Point sécurité important : dans le texte que tu as collé, on voit ton access_token/refresh_token. Je te conseille de révoquer cet accès Google (Compte Google > Sécurité > Apps tierces), puis refaire rclone config rapidement.
+
+c:\Users\moham\Downloads\latest.dump
+ voici sur drive 
+
+mais dans sauvegarde drive doit nomme les fichiers par heure et minue et seconde eet date de jour
+
+
+
+et dit moi si pc endeommager ou j ai perdue data sur site *
+
+que je peux fair eavec ces fichiers pour retourner au meme etat avec meme donner sur frontend et backend et DB
+
+
+
+comme ceci<
+
+Auto-entrepreneur — المقاول الذاتي
+
+Tableau de bordFacturesCabinetsFormationsDéclarationsMes FichiersSécurité
+
+A
+
+admin
+
+
+
+admin
+
+
+
+Déconnexion
+
+Registre des Factures
+
+2 factures enregistrées
+
+
+
+Nouvelle Facture
+
+
+
+2026
+
+
+
+Tous trimestres
+
+
+
+Tous statuts
+
+Cabinet	Client	ville	Prestation	Mode de paiement	Numéro de virement	Date de paiement	Date Déclaration	impôt à payer	Tranche CNSS	Facture	Actions
+
+T2	13-16/04/2026	16/04/2026	34/2026	
+
+ESAQ
+
+ESAQ Certif
+
+Casablanca	
+
+• Habilitation électrique
+
+16.000 MAD	cheque	-	-	En attente	-	160,00 MAD	361,60 MAD	
+
+Télécharger
+
+
+
+
+
+T2	06-09/04/2026	09/04/2026	33/2026	
+
+ESAQ
+
+ESAQ Certif
+
+Casablanca	
+
+• Habilitation électrique
+
+• Travaux en hauteur
+
+16.000 MAD	cheque	-	-	En attente	-	160,00 MAD	361,60 MAD	
+
+Télécharger
+
+
+
+
+
+Total (2 factures):	32.000 MAD		320,00 MAD	723,20 MAD		
+
+
+
+
+
+
+
+
+
+et redonne moi les etapes de depart 
+
+script de demmare r et script de expose site ... 
+
+etape par etape je clique ou 
+
+Je vais faire 2 améliorations maintenant :
+
+nommage des backups Drive en date+heure locale (jour/heure/min/sec),
+inclure aussi les fichiers uploadés (.local-uploads) pour pouvoir restaurer l’état complet.
+Parfait — c’est modifié.
+
+Ce qui est changé maintenant
+Les backups ont un nom date + heure + minute + seconde :
+facture_db_2026-04-25_10-18-13.dump
+Sur Drive, ils seront rangés dans un dossier par jour :
+gdrive:/2026-04-25/...
+On garde aussi des fichiers rapides :
+latest.dump
+latest.dump.sha256
+(et latest_uploads.zip si .local-uploads existe)
+Tu m’as donné ce dossier cible, et c’est bien celui qu’on utilise via GDRIVE_FOLDER_ID :
+Backups_AutoEntrepreneur - Google Drive
+
+Si le PC est cassé / formaté : comment revenir au même état
+Oui, tu peux revenir au même état données métier (factures, cabinets, formations, etc.) avec les backups DB.
+
+A. Sur la nouvelle machine
+Installer Docker + cloner le repo.
+Démarrer DB :
+docker compose up -d db
+Télécharger depuis Drive :
+latest.dump (ou un dump daté précis)
+latest_uploads.zip (si présent)
+B. Restaurer la base
+docker cp latest.dump facture-gestion-hub-db-1:/tmp/latest.dump
+docker compose exec -T db sh -lc "PGPASSWORD=adminpassword pg_restore -U admin -d facture_db --clean --if-exists /tmp/latest.dump"
+C. Restaurer les fichiers uploadés (si tu as latest_uploads.zip)
+mkdir .local-uploads
+tar -xf latest_uploads.zip -C .local-uploads
+(ou extraire avec 7-Zip dans .local-uploads)
+
+D. Lancer l’app
+DEMARRER.bat
+Ouvrir http://localhost:19509
+Tu retrouveras les données frontend/backend puisqu’elles viennent de la DB + fichiers uploadés.
+
+Étapes de départ (clic par clic)
+1) Démarrer le site
+Double-clic DEMARRER.bat
+Attendre
+Le navigateur s’ouvre sur http://localhost:19509
+2) Exposer sur Internet
+Double-clic Expose-site-internet-Cloudflare.bat
+Copier l’URL https://....trycloudflare.com
+Garder cette fenêtre ouverte
+3) Sauvegarde manuelle quand tu veux
+Double-clic BACKUP-MANUEL.bat
+4) Avant fermeture (obligatoire pour dernier état)
+Double-clic ARRETER-ET-SAUVEGARDER.bat
+Ce script :
+fait le backup final
+l’envoie sur Drive
+arrête Docker
+Si tu veux, je peux te donner maintenant une procédure “urgence 5 minutes” (copier/coller uniquement) pour restaurer immédiatement depuis latest.dump.
+
+Si tu veux, je peux te donner maintenant une procédure “urgence 5 minutes” (copier/coller uniquement) pour restaurer immédiatement depuis latest.dump.
+
+donne moi 
+
+aussi je veux que vous ajouter un button de  imprimer 
+
+dans cette page http://localhost:19509/invoices
+
+pour que je peux exporter le frontend de la page avce le contenu exacte 
+
+Je te donne d’abord la procédure “urgence 5 minutes”, puis j’ajoute le bouton Imprimer/Exporter dans invoices avec impression fidèle de la page affichée.
+
+J’ajoute le bouton Imprimer dans la barre de la page factures (avec impression de la vue actuelle), puis je te donne la procédure “urgence 5 minutes” en copier/coller.
+
+Parfait.
+Le bouton est ajouté dans http://localhost:19509/invoices :
+
+Imprimer / Exporter (à côté de “Nouvelle Facture”)
+Il lance window.print() pour exporter la vue actuelle (PDF via navigateur)
+Les filtres/boutons sont masqués à l’impression (print:hidden) pour un rendu propre
+Fichier modifié : artifacts/formation-app/src/pages/invoices.tsx
+
+Procédure “urgence 5 minutes” (copier/coller)
+1) Installer et lancer le projet (nouvelle machine)
+git clone https://github.com/mohamed-wadi/AutoEntrepreneur.git
+cd "AutoEntrepreneur"
+docker compose up -d --build db
+2) Télécharger depuis Drive
+Télécharge depuis ton dossier Drive :
+
+latest.dump
+latest_uploads.zip (si disponible)
+Dossier Drive : Backups_AutoEntrepreneur - Google Drive
+
+3) Restaurer la base
+docker cp "C:\Users\moham\Downloads\latest.dump" facture-gestion-hub-db-1:/tmp/latest.dump
+docker compose exec -T db sh -lc "PGPASSWORD=adminpassword pg_restore -U admin -d facture_db --clean --if-exists /tmp/latest.dump"
+4) Restaurer les fichiers uploadés (si tu as latest_uploads.zip)
+mkdir .local-uploads
+powershell -Command "Expand-Archive -Path 'C:\Users\moham\Downloads\latest_uploads.zip' -DestinationPath '.local-uploads' -Force"
+5) Lancer toute l’app
+.\DEMARRER.bat
+Puis ouvre : http://localhost:19509
+
+Rappel exploitation quotidienne (clic par clic)
+Démarrer : double-clic DEMARRER.bat
+Internet (optionnel) : double-clic Expose-site-internet-Cloudflare.bat
+Backup manuel : double-clic BACKUP-MANUEL.bat
+Avant fermeture (obligatoire) : double-clic ARRETER-ET-SAUVEGARDER.bat
+C’est ce dernier script qui garantit “dernier état sauvegardé” avant arrêt.
