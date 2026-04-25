@@ -1,0 +1,71 @@
+dit moi step by step en detaille comment vous avez lancer le projet
+
+C'est une excellente question pour comprendre comment l'écosystème du projet fonctionne. Voici les étapes précises et détaillées que j'ai suivies pour lancer votre environnement de gestion sur Windows :
+
+Étape 1 : Démarrage du moteur (La Base de Données)
+Toutes vos factures et clients sont stockés dans une base de données PostgreSQL qui tourne via Docker.
+
+Commande : docker start gestion-factures-db
+Pourquoi ? Sans cela, l'application ne peut ni charger vos factures existantes ni en créer de nouvelles. Si ce service s'arrête, vous obtenez une erreur "Internal Server Error".
+Étape 2 : Préparation et lancement du Cerveau (Le Backend)
+Le backend est le serveur "API" qui fait le lien entre la base de données et l'interface que vous voyez. Comme j'ai modifié le code pour corriger le bug des téléchargements, il a fallu le recompiler.
+
+Nettoyage : J'ai d'abord arrêté tous les anciens processus Node qui tournaient en fond pour éviter les conflits de ports (erreur 500).
+Configuration des variables : J'ai défini l'adresse de la base de données et le port de communication (8080).
+Compilation : pnpm --filter @workspace/api-server run build (cela transforme le code source en un programme exécutable).
+Lancement : pnpm --filter @workspace/api-server run start
+Note : Le serveur écoute sur http://localhost:8080.
+Étape 3 : Lancement de la Vitrine (Le Frontend)
+C'est l'interface web (Vite + React) avec laquelle vous interagissez.
+
+Variables d'environnement : J'ai dû lui préciser le port 19509 (celui que vous utilisez dans votre navigateur) et le chemin de base (/).
+Commande : pnpm --filter @workspace/formation-app run dev
+Cela lance le mode "Développement" qui permet de voir les changements instantanément.
+L'interface est accessible sur http://localhost:19509.
+Étape 4 : Vérification de la santé du projet
+Une fois tout lancé, j'ai effectué un test de diagnostic rapide pour m'assurer que tout le monde communique bien :
+
+J'ai lancé une commande curl (un test d'appel réseau) sur http://localhost:8080/api/healthz.
+Dès que le serveur a répondu {"status":"ok"}, j'ai su que le projet était prêt pour vous.
+Résumé pour vous (si vous devez relancer) :
+
+Lancez Docker Desktop.
+Dans un terminal à la racine du projet, lancez la commande globale : pnpm run dev (cela lance généralement le backend et le frontend en même temps).
+Ouvrez votre navigateur sur http://localhost:19509/invoices.
+avec toute les coommandes + les probleme trouver + les solutions faite
+
+
+Thought for 1s
+
+
+Voici le rapport technique complet des opérations effectuées pour professionnaliser et stabiliser votre plateforme Facture-Gestion-Hub.
+
+1. Problèmes Identifiés & Solutions Apportées
+Problème	Solution implémentée
+Incompatibilité Windows	Suppression des scripts preinstall basés sur Linux et retrait des restrictions de plateforme dans pnpm-workspace.yaml.
+Erreurs de Base de Données	Correction du schéma (drizzle-kit push) pour ajouter les colonnes manquantes (ex: ICE) et démarrage forcé du conteneur Docker.
+Perte des liens Word/PDF	Remplacement des champs cachés classiques par des Controllers React Hook Form. Cela garantit que le lien du fichier est bien envoyé au serveur lors du clic sur "Enregistrer".
+Calendriers Inutilisables	Refonte totale des sélecteurs de date. Ajout du mode "Période" (style Booking) pour les formations pour sélectionner une plage de jours d'un seul coup.
+Calculs de Taxes	Fixation du taux CNSS à 3,1% (flat rate) et maintien de l'impôt à 1%, calculés en temps réel sur le chiffre d'affaires.
+Boutons de Téléchargement	Transformation des textes simples en boutons colorés et robustes (Bleu pour Word, Gris pour PDF) dans la colonne "Factures".
+2. Liste des Commandes Clés (Workflow)
+Voici les commandes exactes utilisées pour piloter le projet sur votre machine :
+
+Gestion de l'infrastructure
+docker start gestion-factures-db : Démarre la base de données.
+npx drizzle-kit push : Synchronise la structure de la base de données sans perdre de données.
+taskkill /F /IM node.exe : Commande de secours pour libérer les ports (8080/19509) en cas de blocage.
+Lancement Backend (API)
+$env:DATABASE_URL="postgres://postgres:password@localhost:5432/gestion_factures" : Configure l'accès DB.
+pnpm --filter @workspace/api-server run build : Compile le serveur.
+pnpm --filter @workspace/api-server run start : Lance le serveur sur le port 8080.
+Lancement Frontend (Interface)
+$env:PORT="19509"; $env:BASE_PATH="/" : Configure l'affichage.
+pnpm --filter @workspace/formation-app run dev : Lance l'interface interactive.
+3. Guide de Maintenance (Mode "Pro")
+Pour que vos liens Word apparaissent toujours dans le tableau désormais :
+
+Ouvrez la facture via l'icône Crayon.
+Joindre le document : Cliquez sur "Joindre un Word". Attendez que le bouton passe au VERT (signe que le fichier est monté sur le cloud).
+Appliquer : Cliquez sur "Mettre à jour". Le serveur recevra alors le lien définitif et l'affichera dans votre registre.
+L'application est maintenant configurée pour être plus résistante aux erreurs de saisie et plus claire visuellement. Tout est prêt et opérationnel sur http://localhost:19509.
