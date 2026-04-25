@@ -1,0 +1,546 @@
+import sys
+import os
+import json
+import calendar
+import datetime
+import customtkinter as ctk
+from docx import Document
+from num2words import num2words
+
+# ──────────────────────────────────────────────────────────────────────────────
+# CHEMINS
+# ──────────────────────────────────────────────────────────────────────────────
+
+def get_exe_dir():
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.dirname(sys.executable)
+    return os.path.abspath(".")
+
+def resource_path(relative_path):
+    if hasattr(sys, '_MEIPASS'):
+        external = os.path.join(os.path.dirname(sys.executable), relative_path)
+        if os.path.exists(external):
+            return external
+        return os.path.join(sys._MEIPASS, relative_path)
+    return os.path.join(os.path.abspath("."), relative_path)
+
+def output_path(filename):
+    factures_dir = os.path.join(get_exe_dir(), "Factures")
+    os.makedirs(factures_dir, exist_ok=True)
+    return os.path.join(factures_dir, filename)
+
+def data_path():
+    return os.path.join(get_exe_dir(), "app_data.json")
+
+# ──────────────────────────────────────────────────────────────────────────────
+# PERSISTANCE (JSON local)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def load_data():
+    path = data_path()
+    if os.path.exists(path):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {"last_numero": 0, "last_year": datetime.date.today().year, "clients": {}}
+
+def save_data(data):
+    try:
+        with open(data_path(), "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"Erreur sauvegarde : {e}")
+
+def get_next_numero(data):
+    today_year = datetime.date.today().year
+    if data.get("last_year") != today_year:
+        return 1, today_year
+    return data.get("last_numero", 0) + 1, today_year
+
+def parse_numero(num_str):
+    try:
+        parts = num_str.strip().split("/")
+        if len(parts) == 2:
+            return int(parts[0]), int(parts[1])
+    except Exception:
+        pass
+    return None, None
+
+# ──────────────────────────────────────────────────────────────────────────────
+# HELPERS WORD
+# ──────────────────────────────────────────────────────────────────────────────
+
+def bullet(text):
+    return f"• {text.strip()}" if text.strip() else ""
+
+def clean_replace(text, d):
+    for k, v in d.items():
+        text = text.replace(k, v)
+    lines = [l for l in text.split("\n") if l.strip()]
+    return "\n".join(lines)
+
+def remplacer(doc, data):
+    for p in doc.paragraphs:
+        full = "".join(r.text for r in p.runs)
+        new = clean_replace(full, data)
+        if new != full:
+            for r in p.runs:
+                r.text = ""
+            if p.runs:
+                p.runs[0].text = new
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                for p in cell.paragraphs:
+                    full = "".join(r.text for r in p.runs)
+                    new = clean_replace(full, data)
+                    if new != full:
+                        for r in p.runs:
+                            r.text = ""
+                        if p.runs:
+                            p.runs[0].text = new
+
+def calc(j, p):
+    try:
+        return str(int(j) * int(p)) if j and p else ""
+    except Exception:
+        return ""
+
+def to_int(x):
+    try:
+        return int(x) if x else 0
+    except Exception:
+        return 0
+
+# ──────────────────────────────────────────────────────────────────────────────
+# CALENDRIER POPUP
+# ──────────────────────────────────────────────────────────────────────────────
+
+MONTHS_FR = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
+             "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
+DAYS_FR   = ["Lu", "Ma", "Me", "Je", "Ve", "Sa", "Di"]
+
+def open_calendar(parent, entry_widget):
+    today = datetime.date.today()
+    state = {"year": today.year, "month": today.month}
+
+    top = ctk.CTkToplevel(parent)
+    top.title("Choisir une date")
+    top.geometry("310x295")
+    top.resizable(False, False)
+    top.grab_set()
+    top.focus_set()
+
+    nav = ctk.CTkFrame(top, fg_color="transparent")
+    nav.pack(fill="x", padx=12, pady=(12, 6))
+
+    btn_prev = ctk.CTkButton(nav, text="◀", width=34, height=30, corner_radius=6)
+    btn_prev.pack(side="left")
+
+    month_lbl = ctk.CTkLabel(nav, text="", font=ctk.CTkFont(size=14, weight="bold"), width=200)
+    month_lbl.pack(side="left", expand=True)
+
+    btn_next = ctk.CTkButton(nav, text="▶", width=34, height=30, corner_radius=6)
+    btn_next.pack(side="right")
+
+    grid = ctk.CTkFrame(top, fg_color="transparent")
+    grid.pack(fill="both", expand=True, padx=12, pady=(0, 12))
+
+    def render():
+        for w in grid.winfo_children():
+            w.destroy()
+        month_lbl.configure(text=f"{MONTHS_FR[state['month'] - 1]}  {state['year']}")
+        for col, d in enumerate(DAYS_FR):
+            ctk.CTkLabel(grid, text=d, font=ctk.CTkFont(size=11, weight="bold"),
+                         text_color="gray", width=36, anchor="center"
+                         ).grid(row=0, column=col, padx=1, pady=(0, 4))
+        for week_row, week in enumerate(calendar.monthcalendar(state["year"], state["month"])):
+            for col, day in enumerate(week):
+                if day == 0:
+                    ctk.CTkLabel(grid, text="", width=36).grid(row=week_row+1, column=col, padx=1, pady=1)
+                    continue
+                is_today = (day == today.day and state["month"] == today.month and state["year"] == today.year)
+                ctk.CTkButton(
+                    grid, text=str(day), width=36, height=30, corner_radius=6,
+                    font=ctk.CTkFont(size=12, weight="bold" if is_today else "normal"),
+                    fg_color=("#1f538d", "#1f538d") if is_today else "transparent",
+                    text_color=("white" if is_today else ("gray10", "gray90")),
+                    hover_color=("gray80", "gray30"),
+                    command=lambda d=day: pick(d)
+                ).grid(row=week_row+1, column=col, padx=1, pady=1)
+
+    def pick(day):
+        entry_widget.delete(0, "end")
+        entry_widget.insert(0, f"{day:02d}/{state['month']:02d}/{state['year']}")
+        top.destroy()
+
+    def prev_month():
+        if state["month"] == 1:
+            state["month"] = 12; state["year"] -= 1
+        else:
+            state["month"] -= 1
+        render()
+
+    def next_month():
+        if state["month"] == 12:
+            state["month"] = 1; state["year"] += 1
+        else:
+            state["month"] += 1
+        render()
+
+    btn_prev.configure(command=prev_month)
+    btn_next.configure(command=next_month)
+    render()
+
+# ──────────────────────────────────────────────────────────────────────────────
+# APP
+# ──────────────────────────────────────────────────────────────────────────────
+
+ctk.set_appearance_mode("System")
+ctk.set_default_color_theme("blue")
+
+app = ctk.CTk()
+app.title("Génération de Facture")
+app.geometry("900x920")
+app.minsize(720, 650)
+app.resizable(True, True)
+
+app_data = load_data()
+
+scroll = ctk.CTkScrollableFrame(app, fg_color="transparent")
+scroll.pack(fill="both", expand=True, padx=24, pady=20)
+
+def make_section(parent, title):
+    frame = ctk.CTkFrame(parent, corner_radius=12)
+    frame.pack(fill="x", pady=(0, 14))
+    ctk.CTkLabel(frame, text=f"  {title}",
+                 font=ctk.CTkFont(size=11, weight="bold"),
+                 text_color="gray", anchor="w"
+                 ).pack(fill="x", padx=16, pady=(13, 4))
+    ctk.CTkFrame(frame, height=1, fg_color="gray30").pack(fill="x", padx=16, pady=(0, 12))
+    inner = ctk.CTkFrame(frame, fg_color="transparent")
+    inner.pack(fill="x", padx=16, pady=(0, 16))
+    return inner
+
+# ── Indicateur modèle ────────────────────────────────────────────────────────
+modele_actif  = resource_path("modele_facture.docx")
+modele_exists = os.path.exists(modele_actif)
+mf = ctk.CTkFrame(scroll, fg_color="transparent")
+mf.pack(fill="x", pady=(0, 6))
+ctk.CTkLabel(mf, text="✔  Modèle trouvé" if modele_exists else "❌  modele_facture.docx introuvable !",
+             font=ctk.CTkFont(size=12, weight="bold"),
+             text_color="green" if modele_exists else "red", anchor="w").pack(anchor="w")
+ctk.CTkLabel(mf, text=f"  📄 {modele_actif}",
+             font=ctk.CTkFont(size=10), text_color="gray", anchor="w").pack(anchor="w")
+
+# ── En-tête ──────────────────────────────────────────────────────────────────
+hdr = ctk.CTkFrame(scroll, fg_color="transparent")
+hdr.pack(fill="x", pady=(0, 18))
+ctk.CTkLabel(hdr, text="Génération de Facture",
+             font=ctk.CTkFont(size=24, weight="bold")).pack(anchor="w")
+ctk.CTkLabel(hdr, text="Remplissez les informations ci-dessous puis cliquez sur Générer",
+             font=ctk.CTkFont(size=13), text_color="gray").pack(anchor="w", pady=(2, 0))
+
+# ──────────────────────────────────────────────────────────────────────────────
+# SECTION 1 — NUMÉRO & DATE
+# ──────────────────────────────────────────────────────────────────────────────
+
+s1 = make_section(scroll, "INFORMATIONS DE LA FACTURE")
+s1.columnconfigure((0, 1), weight=1)
+
+# Calcul du prochain numéro
+next_num, next_year = get_next_numero(app_data)
+auto_num_str = f"{next_num}/{next_year}"
+
+# Numéro (éditable + bouton reset ↺)
+ctk.CTkLabel(s1, text="Numéro de facture  (auto-incrémenté, éditable)",
+             font=ctk.CTkFont(size=12), text_color="gray", anchor="w"
+             ).grid(row=0, column=0, sticky="w", padx=(0, 6), pady=(0, 2))
+
+num_row = ctk.CTkFrame(s1, fg_color="transparent")
+num_row.grid(row=1, column=0, sticky="ew", padx=(0, 14), pady=(0, 12))
+num_row.columnconfigure(0, weight=1)
+
+e_num = ctk.CTkEntry(num_row, placeholder_text="ex: 35/2026", height=37, corner_radius=8)
+e_num.grid(row=0, column=0, sticky="ew", padx=(0, 6))
+e_num.insert(0, auto_num_str)
+
+def reset_num():
+    e_num.delete(0, "end")
+    e_num.insert(0, auto_num_str)
+
+ctk.CTkButton(num_row, text="↺", width=37, height=37, corner_radius=8,
+              font=ctk.CTkFont(size=16), fg_color="transparent",
+              border_width=1, border_color="gray50",
+              hover_color=("gray85", "gray25"),
+              command=reset_num
+              ).grid(row=0, column=1)
+
+# Date (aujourd'hui + calendrier 📅)
+today_str = datetime.date.today().strftime("%d/%m/%Y")
+
+ctk.CTkLabel(s1, text="Date de la facture  (aujourd'hui par défaut)",
+             font=ctk.CTkFont(size=12), text_color="gray", anchor="w"
+             ).grid(row=0, column=1, sticky="w", padx=(0, 6), pady=(0, 2))
+
+date_row = ctk.CTkFrame(s1, fg_color="transparent")
+date_row.grid(row=1, column=1, sticky="ew", padx=(0, 0), pady=(0, 12))
+date_row.columnconfigure(0, weight=1)
+
+e_date = ctk.CTkEntry(date_row, placeholder_text="jj/mm/aaaa", height=37, corner_radius=8)
+e_date.grid(row=0, column=0, sticky="ew", padx=(0, 6))
+e_date.insert(0, today_str)
+
+ctk.CTkButton(date_row, text="📅", width=37, height=37, corner_radius=8,
+              font=ctk.CTkFont(size=16), fg_color="transparent",
+              border_width=1, border_color="gray50",
+              hover_color=("gray85", "gray25"),
+              command=lambda: open_calendar(app, e_date)
+              ).grid(row=0, column=1)
+
+# ──────────────────────────────────────────────────────────────────────────────
+# SECTION 2 — CLIENT
+# ──────────────────────────────────────────────────────────────────────────────
+
+s2 = make_section(scroll, "INFORMATIONS CLIENT")
+s2.columnconfigure(0, weight=1)
+
+# Ligne client + boutons
+client_top = ctk.CTkFrame(s2, fg_color="transparent")
+client_top.pack(fill="x", pady=(0, 4))
+client_top.columnconfigure(0, weight=1)
+
+ctk.CTkLabel(client_top, text="Nom du client",
+             font=ctk.CTkFont(size=12), text_color="gray", anchor="w"
+             ).grid(row=0, column=0, columnspan=3, sticky="w", pady=(0, 2))
+
+def get_client_names():
+    return sorted(app_data.get("clients", {}).keys())
+
+e_client = ctk.CTkComboBox(
+    client_top, values=get_client_names(),
+    height=37, corner_radius=8,
+    font=ctk.CTkFont(size=13),
+    dropdown_font=ctk.CTkFont(size=13),
+)
+e_client.grid(row=1, column=0, sticky="ew", padx=(0, 8))
+e_client.set("")
+
+def on_client_selected(name):
+    clients = app_data.get("clients", {})
+    if name in clients:
+        e_ice.delete(0, "end")
+        e_ice.insert(0, clients[name].get("ice", ""))
+        e_adresse.delete(0, "end")
+        e_adresse.insert(0, clients[name].get("adresse", ""))
+
+e_client.configure(command=on_client_selected)
+
+def show_status(msg, color="green"):
+    status_label.configure(text=msg, text_color=color)
+
+def save_client():
+    name = e_client.get().strip()
+    if not name:
+        show_status("⚠  Entrez un nom de client avant de sauvegarder.", "orange")
+        return
+    if "clients" not in app_data:
+        app_data["clients"] = {}
+    app_data["clients"][name] = {
+        "ice":     e_ice.get().strip(),
+        "adresse": e_adresse.get().strip()
+    }
+    save_data(app_data)
+    e_client.configure(values=get_client_names())
+    show_status(f"✔  Client «{name}» sauvegardé.", "green")
+
+def delete_client():
+    name = e_client.get().strip()
+    if name in app_data.get("clients", {}):
+        del app_data["clients"][name]
+        save_data(app_data)
+        e_client.configure(values=get_client_names())
+        e_client.set("")
+        e_ice.delete(0, "end")
+        e_adresse.delete(0, "end")
+        show_status(f"🗑  Client «{name}» supprimé.", "gray")
+    else:
+        show_status("⚠  Ce client n'est pas dans la liste sauvegardée.", "orange")
+
+ctk.CTkButton(client_top, text="💾 Sauvegarder", width=140, height=37, corner_radius=8,
+              command=save_client).grid(row=1, column=1, padx=(0, 6))
+
+ctk.CTkButton(client_top, text="🗑", width=37, height=37, corner_radius=8,
+              fg_color="transparent", border_width=1, border_color="gray50",
+              hover_color=("gray85", "gray25"),
+              text_color=("gray20", "gray80"),
+              command=delete_client).grid(row=1, column=2)
+
+# ICE
+ctk.CTkLabel(s2, text="ICE (Identifiant fiscal)",
+             font=ctk.CTkFont(size=12), text_color="gray", anchor="w"
+             ).pack(anchor="w", pady=(10, 2))
+e_ice = ctk.CTkEntry(s2, placeholder_text="ex: 001234567000056", height=37, corner_radius=8)
+e_ice.pack(fill="x", pady=(0, 8))
+
+# Adresse
+ctk.CTkLabel(s2, text="Adresse complète",
+             font=ctk.CTkFont(size=12), text_color="gray", anchor="w"
+             ).pack(anchor="w", pady=(0, 2))
+e_adresse = ctk.CTkEntry(s2, placeholder_text="ex: 45 Rue des Fleurs, Casablanca 20000",
+                          height=37, corner_radius=8)
+e_adresse.pack(fill="x", pady=(0, 6))
+
+ctk.CTkLabel(s2,
+    text="  💡 Sélectionnez un client dans la liste → ICE et Adresse se remplissent automatiquement."
+         "  Vous pouvez toujours modifier manuellement.",
+    font=ctk.CTkFont(size=11), text_color="gray", anchor="w",
+    wraplength=800, justify="left"
+).pack(anchor="w")
+
+# ──────────────────────────────────────────────────────────────────────────────
+# SECTION 3 — LIGNES
+# ──────────────────────────────────────────────────────────────────────────────
+
+s3 = make_section(scroll, "LIGNES DE LA FACTURE")
+
+COL_WIDTHS = [28, 0, 72, 122, 112]
+COL_LABELS = ["#", "Désignation / Description du service",
+              "Jours", "Prix unitaire (DH)", "Total (DH)"]
+
+for col, (label, w) in enumerate(zip(COL_LABELS, COL_WIDTHS)):
+    if w == 0:
+        s3.columnconfigure(col, weight=1)
+    ctk.CTkLabel(s3, text=label, font=ctk.CTkFont(size=11, weight="bold"),
+                 text_color="gray", anchor="center" if col in (0,2,3,4) else "w",
+                 width=w if w else 0
+                 ).grid(row=0, column=col, sticky="ew", padx=4, pady=(0, 6))
+
+ctk.CTkFrame(s3, height=1, fg_color="gray30").grid(
+    row=1, column=0, columnspan=5, sticky="ew", pady=(0, 8))
+
+entries_d, entries_j, entries_p, labels_t = [], [], [], []
+total_var = ctk.StringVar(value="0 DH")
+
+def update_totals(*_):
+    grand = 0
+    for i in range(5):
+        val = to_int(calc(entries_j[i].get(), entries_p[i].get()))
+        grand += val
+        labels_t[i].configure(text=f"{val:,} DH".replace(",", " ") if val else "—")
+    total_var.set(f"{grand:,} DH".replace(",", " "))
+
+for i in range(5):
+    r = i * 2 + 2
+    ctk.CTkLabel(s3, text=str(i+1), font=ctk.CTkFont(size=12),
+                 text_color="gray", width=28).grid(row=r, column=0, padx=4)
+    d = ctk.CTkEntry(s3, placeholder_text="ex: Développement module paiement",
+                     height=35, corner_radius=6)
+    d.grid(row=r, column=1, sticky="ew", padx=4)
+    entries_d.append(d)
+    j = ctk.CTkEntry(s3, placeholder_text="0", width=72, height=35,
+                     corner_radius=6, justify="center")
+    j.grid(row=r, column=2, padx=4)
+    j.bind("<KeyRelease>", update_totals)
+    entries_j.append(j)
+    p = ctk.CTkEntry(s3, placeholder_text="0", width=122, height=35,
+                     corner_radius=6, justify="center")
+    p.grid(row=r, column=3, padx=4)
+    p.bind("<KeyRelease>", update_totals)
+    entries_p.append(p)
+    t_lbl = ctk.CTkLabel(s3, text="—", font=ctk.CTkFont(size=13, weight="bold"),
+                         width=112, anchor="center")
+    t_lbl.grid(row=r, column=4, padx=4)
+    labels_t.append(t_lbl)
+    if i < 4:
+        ctk.CTkFrame(s3, height=1, fg_color="gray20").grid(
+            row=r+1, column=0, columnspan=5, sticky="ew", padx=4, pady=5)
+
+# ── Total ────────────────────────────────────────────────────────────────────
+tf = ctk.CTkFrame(scroll, corner_radius=12)
+tf.pack(fill="x", pady=(0, 14))
+ctk.CTkLabel(tf, text="Montant total HT", font=ctk.CTkFont(size=13),
+             text_color="gray").pack(anchor="e", padx=22, pady=(13, 0))
+ctk.CTkLabel(tf, textvariable=total_var,
+             font=ctk.CTkFont(size=30, weight="bold")).pack(anchor="e", padx=22, pady=(2, 13))
+
+# ── Status ───────────────────────────────────────────────────────────────────
+status_label = ctk.CTkLabel(scroll, text="",
+                            font=ctk.CTkFont(size=13, weight="bold"),
+                            wraplength=820, justify="left")
+status_label.pack(fill="x", pady=(0, 4))
+
+# ──────────────────────────────────────────────────────────────────────────────
+# GÉNÉRATION
+# ──────────────────────────────────────────────────────────────────────────────
+
+def generer():
+    status_label.configure(text="")
+    num_str = e_num.get().strip()
+    if not num_str:
+        show_status("⚠  Veuillez renseigner le numéro de facture.", "orange"); return
+    if not e_client.get().strip():
+        show_status("⚠  Veuillez renseigner le nom du client.", "orange"); return
+
+    modele = resource_path("modele_facture.docx")
+    if not os.path.exists(modele):
+        show_status(f"❌  modele_facture.docx introuvable !\n    {modele}", "red"); return
+
+    try:
+        doc    = Document(modele)
+        totaux = [calc(entries_j[i].get(), entries_p[i].get()) for i in range(5)]
+        total  = sum(to_int(t) for t in totaux)
+
+        data = {
+            "{{facture_numero}}":  num_str,
+            "{{date_facture}}":    e_date.get().strip(),
+            "{{client_nom}}":      e_client.get().strip(),
+            "{{client_adresse}}":  e_adresse.get().strip(),
+            "{{client_ice}}":      e_ice.get().strip(),
+            **{f"{{{{designation_{i+1}}}}}": bullet(entries_d[i].get()) for i in range(5)},
+            **{f"{{{{jours_{i+1}}}}}":       entries_j[i].get()         for i in range(5)},
+            **{f"{{{{pu_{i+1}}}}}":          entries_p[i].get()         for i in range(5)},
+            **{f"{{{{total_{i+1}}}}}":       totaux[i]                  for i in range(5)},
+            "{{montant_total}}":   str(total),
+            "{{montant_lettres}}": num2words(total, lang='fr').capitalize() + " dirhams",
+            "{{rib}}":             "007780000401230040249794",
+        }
+
+        remplacer(doc, data)
+
+        safe     = num_str.replace("/", "_").replace("\\", "_")
+        dest     = output_path(f"Facture_{safe}.docx")
+        doc.save(dest)
+
+        # Sauvegarder le numéro pour le prochain auto-incrément
+        num_int, year_int = parse_numero(num_str)
+        if num_int is not None:
+            app_data["last_numero"] = num_int
+            app_data["last_year"]   = year_int
+            save_data(app_data)
+            global auto_num_str, next_num, next_year
+            next_num, next_year = get_next_numero(app_data)
+            auto_num_str = f"{next_num}/{next_year}"
+
+        if sys.platform == "win32":
+            os.startfile(dest)
+        elif sys.platform == "darwin":
+            os.system(f'open "{dest}"')
+        else:
+            os.system(f'xdg-open "{dest}"')
+
+        show_status(f"✔  Facture générée → {dest}", "green")
+
+    except Exception as e:
+        show_status(f"❌  Erreur : {e}", "red")
+
+ctk.CTkButton(
+    scroll, text="  Générer la facture (.docx)",
+    height=50, corner_radius=10,
+    font=ctk.CTkFont(size=15, weight="bold"),
+    command=generer
+).pack(fill="x", pady=(0, 28))
+
+app.mainloop()

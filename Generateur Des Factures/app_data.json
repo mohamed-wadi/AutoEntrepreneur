@@ -1,0 +1,27 @@
+{
+  "last_numero": 5,
+  "last_year": 2026,
+  "clients": {
+    "ESAQ Certif": {
+      "ice": "003503208000024",
+      "adresse": "12 rue sabri boujemaa 1er etg N 6, \nCasablanca 20150"
+    }
+  },
+  "designations": {
+    "Montage et démontage échafaudage": {
+      "commentaire": ""
+    },
+    "Prévention et risques d’incendie": {
+      "commentaire": ""
+    },
+    "Inspection échafaudage": {
+      "commentaire": ""
+    },
+    "Habilitation électrique": {
+      "commentaire": ""
+    },
+    "Travaux en hauteur": {
+      "commentaire": ""
+    }
+  }
+}

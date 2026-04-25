@@ -1,0 +1,392 @@
+import sys
+import os
+import customtkinter as ctk
+from docx import Document
+from num2words import num2words
+
+# ──────────────────────────────────────────────────────────────────────────────
+# CHEMINS — CORRECTION PRINCIPALE
+# ──────────────────────────────────────────────────────────────────────────────
+
+def get_exe_dir():
+    """Dossier où se trouve l'exe (ou le script en dev)."""
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.dirname(sys.executable)
+    return os.path.abspath(".")
+
+def resource_path(relative_path):
+    """
+    Cherche le fichier dans cet ordre de priorité :
+      1) À côté de l'exe   → l'utilisateur peut modifier le modèle librement
+      2) Dans _MEIPASS     → fallback sur le modèle embarqué au build
+    En mode développement (script .py), cherche dans le dossier courant.
+    """
+    if hasattr(sys, '_MEIPASS'):
+        # Priorité 1 : à côté de l'exe (modifiable par l'utilisateur)
+        external = os.path.join(os.path.dirname(sys.executable), relative_path)
+        if os.path.exists(external):
+            return external
+        # Priorité 2 : ressource embarquée dans l'exe
+        return os.path.join(sys._MEIPASS, relative_path)
+    # Mode dev
+    return os.path.join(os.path.abspath("."), relative_path)
+
+def output_path(filename):
+    """
+    Les factures générées vont dans le sous-dossier 'Factures/'
+    situé à côté de l'exe (ou du script en dev).
+    Le dossier est créé automatiquement s'il n'existe pas.
+    """
+    factures_dir = os.path.join(get_exe_dir(), "Factures")
+    os.makedirs(factures_dir, exist_ok=True)
+    return os.path.join(factures_dir, filename)
+
+# ──────────────────────────────────────────────────────────────────────────────
+# HELPERS
+# ──────────────────────────────────────────────────────────────────────────────
+
+def bullet(text):
+    return f"• {text.strip()}" if text.strip() else ""
+
+def clean_replace(text, data):
+    for k, v in data.items():
+        text = text.replace(k, v)
+    lines = [l for l in text.split("\n") if l.strip()]
+    return "\n".join(lines)
+
+def remplacer(doc, data):
+    for p in doc.paragraphs:
+        full = "".join(r.text for r in p.runs)
+        new = clean_replace(full, data)
+        if new != full:
+            for r in p.runs:
+                r.text = ""
+            if p.runs:
+                p.runs[0].text = new
+
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                for p in cell.paragraphs:
+                    full = "".join(r.text for r in p.runs)
+                    new = clean_replace(full, data)
+                    if new != full:
+                        for r in p.runs:
+                            r.text = ""
+                        if p.runs:
+                            p.runs[0].text = new
+
+def calc(j, p):
+    try:
+        return str(int(j) * int(p)) if j and p else ""
+    except:
+        return ""
+
+def to_int(x):
+    try:
+        return int(x) if x else 0
+    except:
+        return 0
+
+# ──────────────────────────────────────────────────────────────────────────────
+# APP UI
+# ──────────────────────────────────────────────────────────────────────────────
+
+ctk.set_appearance_mode("System")
+ctk.set_default_color_theme("blue")
+
+app = ctk.CTk()
+app.title("Génération de Facture")
+app.geometry("860x820")
+app.minsize(700, 600)
+app.resizable(True, True)
+
+scroll = ctk.CTkScrollableFrame(app, fg_color="transparent")
+scroll.pack(fill="both", expand=True, padx=24, pady=20)
+
+# ──────────────────────────────────────────────────────────────────────────────
+# COMPOSANTS UI
+# ──────────────────────────────────────────────────────────────────────────────
+
+def make_section(parent, title):
+    frame = ctk.CTkFrame(parent, corner_radius=12)
+    frame.pack(fill="x", pady=(0, 14))
+    ctk.CTkLabel(
+        frame, text=f"  {title}",
+        font=ctk.CTkFont(size=11, weight="bold"),
+        text_color="gray", anchor="w"
+    ).pack(fill="x", padx=16, pady=(13, 4))
+    ctk.CTkFrame(frame, height=1, fg_color="gray30").pack(
+        fill="x", padx=16, pady=(0, 12)
+    )
+    inner = ctk.CTkFrame(frame, fg_color="transparent")
+    inner.pack(fill="x", padx=16, pady=(0, 16))
+    return inner
+
+def make_field(parent, label_text, grid_row, grid_col,
+               placeholder="", width=260, colspan=1):
+    ctk.CTkLabel(
+        parent, text=label_text,
+        font=ctk.CTkFont(size=12),
+        text_color="gray", anchor="w"
+    ).grid(row=grid_row * 2, column=grid_col,
+           columnspan=colspan, sticky="w",
+           padx=(0, 14), pady=(0, 2))
+    entry = ctk.CTkEntry(
+        parent, placeholder_text=placeholder,
+        width=width, height=37, corner_radius=8
+    )
+    entry.grid(row=grid_row * 2 + 1, column=grid_col,
+               columnspan=colspan, sticky="ew",
+               padx=(0, 14), pady=(0, 12))
+    return entry
+
+# ──────────────────────────────────────────────────────────────────────────────
+# INDICATEUR DE MODÈLE ACTIF
+# ──────────────────────────────────────────────────────────────────────────────
+
+modele_actif = resource_path("modele_facture.docx")
+modele_status = "✔  Modèle trouvé" if os.path.exists(modele_actif) else "❌  modele_facture.docx introuvable !"
+modele_color  = "green" if os.path.exists(modele_actif) else "red"
+modele_tip    = f"  📄 {modele_actif}"
+
+modele_frame = ctk.CTkFrame(scroll, fg_color="transparent")
+modele_frame.pack(fill="x", pady=(0, 8))
+
+ctk.CTkLabel(
+    modele_frame,
+    text=modele_status,
+    font=ctk.CTkFont(size=12, weight="bold"),
+    text_color=modele_color, anchor="w"
+).pack(anchor="w")
+ctk.CTkLabel(
+    modele_frame, text=modele_tip,
+    font=ctk.CTkFont(size=10),
+    text_color="gray", anchor="w"
+).pack(anchor="w")
+
+# ──────────────────────────────────────────────────────────────────────────────
+# EN-TÊTE
+# ──────────────────────────────────────────────────────────────────────────────
+
+header = ctk.CTkFrame(scroll, fg_color="transparent")
+header.pack(fill="x", pady=(0, 18))
+ctk.CTkLabel(
+    header, text="Génération de Facture",
+    font=ctk.CTkFont(size=24, weight="bold")
+).pack(anchor="w")
+ctk.CTkLabel(
+    header,
+    text="Remplissez les informations ci-dessous puis cliquez sur Générer",
+    font=ctk.CTkFont(size=13), text_color="gray"
+).pack(anchor="w", pady=(2, 0))
+
+# ──────────────────────────────────────────────────────────────────────────────
+# SECTION 1 — INFORMATIONS FACTURE
+# ──────────────────────────────────────────────────────────────────────────────
+
+s1 = make_section(scroll, "INFORMATIONS DE LA FACTURE")
+s1.columnconfigure((0, 1), weight=1)
+e_num  = make_field(s1, "Numéro de facture",  0, 0, "ex: 2024/001")
+e_date = make_field(s1, "Date de la facture", 0, 1, "ex: 12/04/2025")
+
+# ──────────────────────────────────────────────────────────────────────────────
+# SECTION 2 — INFORMATIONS CLIENT
+# ──────────────────────────────────────────────────────────────────────────────
+
+s2 = make_section(scroll, "INFORMATIONS CLIENT")
+s2.columnconfigure((0, 1), weight=1)
+e_client  = make_field(s2, "Nom du client",             0, 0, "ex: Société ACME Maroc")
+e_ice     = make_field(s2, "ICE (Identifiant fiscal)",  0, 1, "ex: 001234567000056")
+e_adresse = make_field(s2, "Adresse complète",          1, 0,
+                       "ex: 45 Rue des Fleurs, Casablanca 20000", colspan=2)
+
+# ──────────────────────────────────────────────────────────────────────────────
+# SECTION 3 — LIGNES DE FACTURE
+# ──────────────────────────────────────────────────────────────────────────────
+
+s3 = make_section(scroll, "LIGNES DE LA FACTURE")
+
+COL_WIDTHS = [28, 0, 72, 122, 112]
+COL_LABELS = ["#", "Désignation / Description du service",
+              "Jours", "Prix unitaire (DH)", "Total (DH)"]
+
+for col, (label, w) in enumerate(zip(COL_LABELS, COL_WIDTHS)):
+    if w == 0:
+        s3.columnconfigure(col, weight=1)
+    ctk.CTkLabel(
+        s3, text=label,
+        font=ctk.CTkFont(size=11, weight="bold"),
+        text_color="gray",
+        anchor="center" if col in (0, 2, 3, 4) else "w",
+        width=w if w else 0
+    ).grid(row=0, column=col, sticky="ew", padx=4, pady=(0, 6))
+
+ctk.CTkFrame(s3, height=1, fg_color="gray30").grid(
+    row=1, column=0, columnspan=5, sticky="ew", pady=(0, 8)
+)
+
+entries_d = []
+entries_j = []
+entries_p = []
+labels_t  = []
+total_var = ctk.StringVar(value="0 DH")
+
+def update_totals(*_):
+    grand = 0
+    for i in range(5):
+        val = to_int(calc(entries_j[i].get(), entries_p[i].get()))
+        grand += val
+        labels_t[i].configure(
+            text=f"{val:,} DH".replace(",", " ") if val else "—"
+        )
+    total_var.set(f"{grand:,} DH".replace(",", " "))
+
+for i in range(5):
+    r = i * 2 + 2
+    ctk.CTkLabel(
+        s3, text=str(i + 1),
+        font=ctk.CTkFont(size=12),
+        text_color="gray", width=28
+    ).grid(row=r, column=0, padx=4)
+
+    d = ctk.CTkEntry(s3, placeholder_text="ex: Développement module paiement",
+                     height=35, corner_radius=6)
+    d.grid(row=r, column=1, sticky="ew", padx=4)
+    entries_d.append(d)
+
+    j = ctk.CTkEntry(s3, placeholder_text="0",
+                     width=72, height=35, corner_radius=6, justify="center")
+    j.grid(row=r, column=2, padx=4)
+    j.bind("<KeyRelease>", update_totals)
+    entries_j.append(j)
+
+    p = ctk.CTkEntry(s3, placeholder_text="0",
+                     width=122, height=35, corner_radius=6, justify="center")
+    p.grid(row=r, column=3, padx=4)
+    p.bind("<KeyRelease>", update_totals)
+    entries_p.append(p)
+
+    t_lbl = ctk.CTkLabel(s3, text="—",
+                         font=ctk.CTkFont(size=13, weight="bold"),
+                         width=112, anchor="center")
+    t_lbl.grid(row=r, column=4, padx=4)
+    labels_t.append(t_lbl)
+
+    if i < 4:
+        ctk.CTkFrame(s3, height=1, fg_color="gray20").grid(
+            row=r + 1, column=0, columnspan=5,
+            sticky="ew", padx=4, pady=5
+        )
+
+# ──────────────────────────────────────────────────────────────────────────────
+# TOTAL GÉNÉRAL
+# ──────────────────────────────────────────────────────────────────────────────
+
+total_frame = ctk.CTkFrame(scroll, corner_radius=12)
+total_frame.pack(fill="x", pady=(0, 14))
+ctk.CTkLabel(
+    total_frame, text="Montant total HT",
+    font=ctk.CTkFont(size=13), text_color="gray"
+).pack(anchor="e", padx=22, pady=(13, 0))
+ctk.CTkLabel(
+    total_frame, textvariable=total_var,
+    font=ctk.CTkFont(size=30, weight="bold")
+).pack(anchor="e", padx=22, pady=(2, 13))
+
+# ──────────────────────────────────────────────────────────────────────────────
+# STATUS
+# ──────────────────────────────────────────────────────────────────────────────
+
+status_label = ctk.CTkLabel(scroll, text="",
+                            font=ctk.CTkFont(size=13, weight="bold"))
+status_label.pack(fill="x", pady=(0, 4))
+
+# ──────────────────────────────────────────────────────────────────────────────
+# GÉNÉRATION
+# ──────────────────────────────────────────────────────────────────────────────
+
+def generer():
+    status_label.configure(text="")
+
+    if not e_num.get().strip():
+        status_label.configure(
+            text="⚠  Veuillez renseigner le numéro de facture.",
+            text_color="orange"
+        )
+        return
+
+    if not e_client.get().strip():
+        status_label.configure(
+            text="⚠  Veuillez renseigner le nom du client.",
+            text_color="orange"
+        )
+        return
+
+    # ── Recherche du modèle (priorité : à côté de l'exe) ─────────────────
+    modele = resource_path("modele_facture.docx")
+    if not os.path.exists(modele):
+        status_label.configure(
+            text="❌  Fichier modele_facture.docx introuvable !\n"
+                 f"    Chemin cherché : {modele}",
+            text_color="red"
+        )
+        return
+
+    try:
+        doc = Document(modele)
+
+        totaux = [calc(entries_j[i].get(), entries_p[i].get()) for i in range(5)]
+        total  = sum(to_int(t) for t in totaux)
+
+        data = {
+            "{{facture_numero}}":  e_num.get().strip(),
+            "{{date_facture}}":    e_date.get().strip(),
+            "{{client_nom}}":      e_client.get().strip(),
+            "{{client_adresse}}":  e_adresse.get().strip(),
+            "{{client_ice}}":      e_ice.get().strip(),
+            **{f"{{{{designation_{i+1}}}}}": bullet(entries_d[i].get()) for i in range(5)},
+            **{f"{{{{jours_{i+1}}}}}":       entries_j[i].get()         for i in range(5)},
+            **{f"{{{{pu_{i+1}}}}}":          entries_p[i].get()         for i in range(5)},
+            **{f"{{{{total_{i+1}}}}}":       totaux[i]                  for i in range(5)},
+            "{{montant_total}}":   str(total),
+            "{{montant_lettres}}": num2words(total, lang='fr').capitalize() + " dirhams",
+            "{{rib}}":             "007780000401230040249794",
+        }
+
+        remplacer(doc, data)
+
+        safe     = e_num.get().strip().replace("/", "_").replace("\\", "_")
+        filename = f"Facture_{safe}.docx"
+        dest     = output_path(filename)
+        doc.save(dest)
+
+        # Ouvrir la facture automatiquement
+        if sys.platform == "win32":
+            os.startfile(dest)
+        elif sys.platform == "darwin":
+            os.system(f'open "{dest}"')
+        else:
+            os.system(f'xdg-open "{dest}"')
+
+        status_label.configure(
+            text=f"✔  Facture générée → {dest}",
+            text_color="green"
+        )
+
+    except Exception as e:
+        status_label.configure(
+            text=f"❌  Erreur : {e}",
+            text_color="red"
+        )
+
+ctk.CTkButton(
+    scroll,
+    text="  Générer la facture (.docx)",
+    height=48,
+    corner_radius=10,
+    font=ctk.CTkFont(size=15, weight="bold"),
+    command=generer
+).pack(fill="x", pady=(0, 24))
+
+app.mainloop()
