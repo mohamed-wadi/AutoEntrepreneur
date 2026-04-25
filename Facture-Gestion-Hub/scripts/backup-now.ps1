@@ -4,6 +4,25 @@ function Write-Step([string]$msg) {
   Write-Host "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] $msg"
 }
 
+function Get-CurrentTrimestre([datetime]$dt) {
+  $m = $dt.Month
+  if ($m -ge 1 -and $m -le 3) { return "T1" }
+  if ($m -ge 4 -and $m -le 6) { return "T2" }
+  if ($m -ge 7 -and $m -le 9) { return "T3" }
+  return "T4"
+}
+
+function Get-StringHash([string]$value) {
+  $sha = [System.Security.Cryptography.SHA256]::Create()
+  try {
+    $bytes = [System.Text.Encoding]::UTF8.GetBytes($value)
+    $hash = $sha.ComputeHash($bytes)
+    return ([System.BitConverter]::ToString($hash)).Replace("-", "").ToLower()
+  } finally {
+    $sha.Dispose()
+  }
+}
+
 function Load-EnvFile([string]$path) {
   if (-not (Test-Path $path)) { return }
   Get-Content $path | ForEach-Object {
@@ -39,11 +58,14 @@ if (-not $keepLocal) { $keepLocal = "30" }
 
 $backupDir = Join-Path $root "backups"
 New-Item -ItemType Directory -Force -Path $backupDir | Out-Null
+$stateFile = Join-Path $backupDir "backup-state.json"
 
 # Local timestamp for filenames: date + hour + minute + second
 $now = Get-Date
 $ts = $now.ToString("yyyy-MM-dd_HH-mm-ss")
 $dayFolderName = $now.ToString("yyyy-MM-dd")
+$yearFolderName = $now.ToString("yyyy")
+$currentTrimestre = Get-CurrentTrimestre $now
 $dumpFile = Join-Path $backupDir ("facture_db_" + $ts + ".dump")
 $shaFile = $dumpFile + ".sha256"
 $latestDump = Join-Path $backupDir "latest.dump"
@@ -53,6 +75,7 @@ $uploadsRoot = Join-Path $root ".local-uploads"
 $uploadsZip = Join-Path $backupDir ("uploads_" + $ts + ".zip")
 $latestUploadsZip = Join-Path $backupDir "latest_uploads.zip"
 $registresRoot = Join-Path $backupDir "registres"
+$declarationsRoot = Join-Path $backupDir "declarations"
 
 # Ensure DB service is running before dump
 Write-Step "Ensuring db service is running..."
@@ -76,51 +99,111 @@ if (-not $ready) {
   throw "Database is not ready after ${maxWaitSec}s."
 }
 
-Write-Step "Creating PostgreSQL dump: $dumpFile"
-$dumpCmd = "PGPASSWORD=$pgPassword pg_dump -U $pgUser -d $pgDb -Fc"
-cmd /c "docker compose exec -T db sh -lc ""$dumpCmd"" > ""$dumpFile"""
-if ($LASTEXITCODE -ne 0) {
-  throw "pg_dump failed."
+function Invoke-DbJson([string]$sql) {
+  $raw = & docker compose exec -T -e "PGPASSWORD=$pgPassword" db psql -U $pgUser -d $pgDb -t -A -c $sql
+  if ($LASTEXITCODE -ne 0) {
+    throw "Failed to query database for change detection."
+  }
+  if ($null -eq $raw) { return "" }
+  if ($raw -is [System.Array]) {
+    return (($raw -join "`n").Trim())
+  }
+  return ([string]$raw).Trim()
 }
 
-$hash = (Get-FileHash -Algorithm SHA256 -Path $dumpFile).Hash.ToLower()
-"$hash  $(Split-Path -Leaf $dumpFile)" | Out-File -FilePath $shaFile -Encoding ascii
-Copy-Item $dumpFile $latestDump -Force
-"$hash  latest.dump" | Out-File -FilePath $latestSha -Encoding ascii
+# Change detection (avoid filling Drive when nothing changed)
+$invoicesJson = Invoke-DbJson "SELECT COALESCE(json_agg(t), '[]'::json) FROM (SELECT id, trimestre, year, numero_facture, date_formation, date_facture, cabinet, client_id, ville, prestation, montant_dh, mode_paiement, numero_paiement, date_paiement, statut, date_declaration, invoice_docx_url, created_at FROM invoices ORDER BY id) t;"
+if (-not $invoicesJson) { $invoicesJson = "[]" }
+$declarationsJson = Invoke-DbJson "SELECT COALESCE(json_agg(t), '[]'::json) FROM (SELECT id, trimestre, year, file_url, file_name, created_at FROM declaration_documents ORDER BY id) t;"
+if (-not $declarationsJson) { $declarationsJson = "[]" }
 
-if (Test-Path $uploadsRoot) {
-  Write-Step "Archiving uploaded files: $uploadsZip"
-  if (Test-Path $uploadsZip) { Remove-Item $uploadsZip -Force }
-  Compress-Archive -Path (Join-Path $uploadsRoot "*") -DestinationPath $uploadsZip -Force
-  Copy-Item $uploadsZip $latestUploadsZip -Force
+$currentInvoicesHash = Get-StringHash $invoicesJson
+$currentDeclarationsHash = Get-StringHash $declarationsJson
+
+$previousInvoicesHash = ""
+$previousDeclarationsHash = ""
+if (Test-Path $stateFile) {
+  try {
+    $state = Get-Content $stateFile -Raw | ConvertFrom-Json
+    if ($state.invoicesHash) { $previousInvoicesHash = [string]$state.invoicesHash }
+    if ($state.declarationsHash) { $previousDeclarationsHash = [string]$state.declarationsHash }
+  } catch {
+    Write-Step "State file unreadable, forcing one sync run."
+  }
+}
+
+$invoicesChanged = ($currentInvoicesHash -ne $previousInvoicesHash)
+$declarationsChanged = ($currentDeclarationsHash -ne $previousDeclarationsHash)
+
+if (-not $invoicesChanged -and -not $declarationsChanged) {
+  Write-Step "No changes in invoices/declarations: skipping backup, registres, declarations export/upload."
+  exit 0
+}
+
+if ($invoicesChanged) {
+  Write-Step "Invoices changed: creating PostgreSQL dump: $dumpFile"
+  $dumpCmd = "PGPASSWORD=$pgPassword pg_dump -U $pgUser -d $pgDb -Fc"
+  cmd /c "docker compose exec -T db sh -lc ""$dumpCmd"" > ""$dumpFile"""
+  if ($LASTEXITCODE -ne 0) {
+    throw "pg_dump failed."
+  }
+
+  $hash = (Get-FileHash -Algorithm SHA256 -Path $dumpFile).Hash.ToLower()
+  "$hash  $(Split-Path -Leaf $dumpFile)" | Out-File -FilePath $shaFile -Encoding ascii
+  Copy-Item $dumpFile $latestDump -Force
+  "$hash  latest.dump" | Out-File -FilePath $latestSha -Encoding ascii
+
+  if (Test-Path $uploadsRoot) {
+    Write-Step "Archiving uploaded files: $uploadsZip"
+    if (Test-Path $uploadsZip) { Remove-Item $uploadsZip -Force }
+    Compress-Archive -Path (Join-Path $uploadsRoot "*") -DestinationPath $uploadsZip -Force
+    Copy-Item $uploadsZip $latestUploadsZip -Force
+  } else {
+    Write-Step "No .local-uploads folder found. Skipping uploads archive."
+  }
+
+  # Export invoices as XLSX per year/quarter (Registres)
+  Write-Step "Exporting Registres XLSX by year/trimestre..."
+  $env:EXPORT_STAMP = $ts
+  $env:REGISTRES_OUTPUT_DIR = (Join-Path $backupDir "registres")
+  $exportUser = [Environment]::GetEnvironmentVariable("EXPORT_AUTH_USERNAME", "Process")
+  $exportPass = [Environment]::GetEnvironmentVariable("EXPORT_AUTH_PASSWORD", "Process")
+  if ($exportUser) { $env:EXPORT_AUTH_USERNAME = $exportUser }
+  if ($exportPass) { $env:EXPORT_AUTH_PASSWORD = $exportPass }
+  cmd /c "pnpm --filter @workspace/formation-app exec node ./scripts/export-invoices-xlsx.mjs"
+  if ($LASTEXITCODE -ne 0) {
+    throw "Registres XLSX export failed."
+  }
 } else {
-  Write-Step "No .local-uploads folder found. Skipping uploads archive."
+  Write-Step "Invoices unchanged: skip DB dump and Registres export."
 }
 
-# Export invoices as XLSX per year/quarter (Registres)
-Write-Step "Exporting Registres XLSX by year/trimestre..."
-$env:EXPORT_STAMP = $ts
-$env:REGISTRES_OUTPUT_DIR = (Join-Path $backupDir "registres")
-$exportUser = [Environment]::GetEnvironmentVariable("EXPORT_AUTH_USERNAME", "Process")
-$exportPass = [Environment]::GetEnvironmentVariable("EXPORT_AUTH_PASSWORD", "Process")
-if ($exportUser) { $env:EXPORT_AUTH_USERNAME = $exportUser }
-if ($exportPass) { $env:EXPORT_AUTH_PASSWORD = $exportPass }
-cmd /c "pnpm --filter @workspace/formation-app exec node ./scripts/export-invoices-xlsx.mjs"
-if ($LASTEXITCODE -ne 0) {
-  throw "Registres XLSX export failed."
+if ($declarationsChanged) {
+  # Export declaration documents by year/trimestre from local uploaded files
+  Write-Step "Declarations changed: exporting declaration documents by year/trimestre..."
+  $env:DECLARATIONS_OUTPUT_DIR = $declarationsRoot
+  $env:LOCAL_UPLOAD_ROOT = $uploadsRoot
+  cmd /c "pnpm --filter @workspace/formation-app exec node ./scripts/export-declaration-documents.mjs"
+  if ($LASTEXITCODE -ne 0) {
+    throw "Declaration documents export failed."
+  }
+} else {
+  Write-Step "Declarations unchanged: skip declaration documents export."
 }
 
 Write-Step "Applying local retention (keep latest $keepLocal)"
-$allBackups = Get-ChildItem -Path $backupDir -Filter "facture_db_*.dump" | Sort-Object LastWriteTime -Descending
-$maxKeep = 30
-if ([int]::TryParse($keepLocal, [ref]$maxKeep) -eq $false) { $maxKeep = 30 }
-if ($maxKeep -lt 1) { $maxKeep = 1 }
-$toDelete = $allBackups | Select-Object -Skip $maxKeep
-foreach ($file in $toDelete) {
-  $suffix = ($file.Name -replace "^facture_db_", "" -replace "\.dump$", "")
-  Remove-Item $file.FullName -Force -ErrorAction SilentlyContinue
-  Remove-Item ($file.FullName + ".sha256") -Force -ErrorAction SilentlyContinue
-  Remove-Item (Join-Path $backupDir ("uploads_" + $suffix + ".zip")) -Force -ErrorAction SilentlyContinue
+if ($invoicesChanged) {
+  $allBackups = Get-ChildItem -Path $backupDir -Filter "facture_db_*.dump" | Sort-Object LastWriteTime -Descending
+  $maxKeep = 30
+  if ([int]::TryParse($keepLocal, [ref]$maxKeep) -eq $false) { $maxKeep = 30 }
+  if ($maxKeep -lt 1) { $maxKeep = 1 }
+  $toDelete = $allBackups | Select-Object -Skip $maxKeep
+  foreach ($file in $toDelete) {
+    $suffix = ($file.Name -replace "^facture_db_", "" -replace "\.dump$", "")
+    Remove-Item $file.FullName -Force -ErrorAction SilentlyContinue
+    Remove-Item ($file.FullName + ".sha256") -Force -ErrorAction SilentlyContinue
+    Remove-Item (Join-Path $backupDir ("uploads_" + $suffix + ".zip")) -Force -ErrorAction SilentlyContinue
+  }
 }
 
 $upload = [Environment]::GetEnvironmentVariable("GDRIVE_UPLOAD", "Process")
@@ -145,34 +228,39 @@ if ($upload -and $upload.ToLower() -eq "true") {
     $regRemote = [Environment]::GetEnvironmentVariable("REGISTRES_GDRIVE_REMOTE", "Process")
     if (-not $regRemote) { $regRemote = $remote }
     $regFolderId = [Environment]::GetEnvironmentVariable("REGISTRES_GDRIVE_FOLDER_ID", "Process")
-    $remoteDayPath = "$remote$dayFolderName"
-    Write-Step "Uploading backup to Google Drive folder: $dayFolderName"
+    $declRemote = [Environment]::GetEnvironmentVariable("DECLARATIONS_GDRIVE_REMOTE", "Process")
+    if (-not $declRemote) { $declRemote = $remote }
+    $declFolderId = [Environment]::GetEnvironmentVariable("DECLARATIONS_GDRIVE_FOLDER_ID", "Process")
+    $remotePeriodPath = "$remote$yearFolderName/$currentTrimestre/backups"
+    Write-Step "Uploading changed data to Google Drive folder: $yearFolderName/$currentTrimestre"
 
     $common = @("--progress")
     if ($folderId) { $common += @("--drive-root-folder-id", $folderId) }
 
-    & $rcloneCmd copy $dumpFile $remoteDayPath @common
-    if ($LASTEXITCODE -ne 0) { throw "rclone upload failed for dump file." }
-    & $rcloneCmd copy $shaFile $remoteDayPath @common
-    if ($LASTEXITCODE -ne 0) { throw "rclone upload failed for sha file." }
+    if ($invoicesChanged) {
+      & $rcloneCmd copy $dumpFile $remotePeriodPath @common
+      if ($LASTEXITCODE -ne 0) { throw "rclone upload failed for dump file." }
+      & $rcloneCmd copy $shaFile $remotePeriodPath @common
+      if ($LASTEXITCODE -ne 0) { throw "rclone upload failed for sha file." }
 
-    if (Test-Path $uploadsZip) {
-      & $rcloneCmd copy $uploadsZip $remoteDayPath @common
-      if ($LASTEXITCODE -ne 0) { throw "rclone upload failed for uploads zip." }
-    }
+      if (Test-Path $uploadsZip) {
+        & $rcloneCmd copy $uploadsZip $remotePeriodPath @common
+        if ($LASTEXITCODE -ne 0) { throw "rclone upload failed for uploads zip." }
+      }
 
-    # Keep "latest" at root for quick restore.
-    & $rcloneCmd copy $latestDump $remote @common
-    if ($LASTEXITCODE -ne 0) { throw "rclone upload failed for latest dump." }
-    & $rcloneCmd copy $latestSha $remote @common
-    if ($LASTEXITCODE -ne 0) { throw "rclone upload failed for latest sha file." }
-    if (Test-Path $latestUploadsZip) {
-      & $rcloneCmd copy $latestUploadsZip $remote @common
-      if ($LASTEXITCODE -ne 0) { throw "rclone upload failed for latest uploads zip." }
+      # Keep "latest" at root for quick restore.
+      & $rcloneCmd copy $latestDump $remote @common
+      if ($LASTEXITCODE -ne 0) { throw "rclone upload failed for latest dump." }
+      & $rcloneCmd copy $latestSha $remote @common
+      if ($LASTEXITCODE -ne 0) { throw "rclone upload failed for latest sha file." }
+      if (Test-Path $latestUploadsZip) {
+        & $rcloneCmd copy $latestUploadsZip $remote @common
+        if ($LASTEXITCODE -ne 0) { throw "rclone upload failed for latest uploads zip." }
+      }
     }
 
     # Upload Registres/<year>/<trimestre>/...xlsx for this run
-    if (Test-Path $registresRoot) {
+    if ($invoicesChanged -and (Test-Path $registresRoot)) {
       if ($regFolderId) {
         $regCommon = @("--progress", "--drive-root-folder-id", $regFolderId)
         & $rcloneCmd copy $registresRoot $regRemote @regCommon
@@ -181,7 +269,26 @@ if ($upload -and $upload.ToLower() -eq "true") {
       }
       if ($LASTEXITCODE -ne 0) { throw "rclone upload failed for Registres folder." }
     }
+
+    # Upload Declarations/<year>/<trimestre>/... files from the website uploads
+    if ($declarationsChanged -and (Test-Path $declarationsRoot)) {
+      if ($declFolderId) {
+        $declCommon = @("--progress", "--drive-root-folder-id", $declFolderId)
+        & $rcloneCmd copy $declarationsRoot $declRemote @declCommon
+      } else {
+        & $rcloneCmd copy $declarationsRoot "$($remote)Declarations" @common
+      }
+      if ($LASTEXITCODE -ne 0) { throw "rclone upload failed for Declarations folder." }
+    }
   }
 }
+
+# Save sync state for next run
+$statePayload = @{
+  invoicesHash = $currentInvoicesHash
+  declarationsHash = $currentDeclarationsHash
+  updatedAt = (Get-Date).ToString("o")
+} | ConvertTo-Json -Depth 3
+$statePayload | Out-File -FilePath $stateFile -Encoding utf8
 
 Write-Step "Backup done."

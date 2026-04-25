@@ -8,6 +8,12 @@ const STAMP = process.env.EXPORT_STAMP;
 const DB_USER = process.env.POSTGRES_USER ?? "admin";
 const DB_PASSWORD = process.env.POSTGRES_PASSWORD ?? "adminpassword";
 const DB_NAME = process.env.POSTGRES_DB ?? "facture_db";
+const IGNORED_YEARS = new Set(
+  (process.env.EXPORT_IGNORED_YEARS ?? "2025")
+    .split(",")
+    .map((v) => Number(v.trim()))
+    .filter((v) => Number.isFinite(v)),
+);
 
 if (!STAMP) {
   console.error("Missing EXPORT_STAMP");
@@ -180,12 +186,14 @@ async function main() {
   for (const inv of all) {
     const y = Number(inv.year);
     const tri = String(inv.trimestre ?? "");
-    if (!Number.isFinite(y) || !tri) continue;
+    if (!Number.isFinite(y) || !tri || IGNORED_YEARS.has(y)) continue;
     const key = `${y}-${tri}`;
     if (!byKey.has(key)) byKey.set(key, []);
     byKey.get(key).push(inv);
   }
 
+  // Rebuild folder to avoid keeping old ignored years from previous runs.
+  fs.rmSync(OUTPUT_DIR, { recursive: true, force: true });
   fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 
   let count = 0;
