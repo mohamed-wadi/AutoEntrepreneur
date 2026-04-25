@@ -28,8 +28,11 @@ services:
       CORS_ORIGINS: http://localhost:19509,http://127.0.0.1:19509
       SYNC_DEFAULT_CATALOGS: "false"
       SYNC_DEFAULT_CABINETS: "false"
+      LOCAL_UPLOAD_ROOT: /data/local-uploads
     ports:
       - "8080:8080"
+    volumes:
+      - ./.local-uploads:/data/local-uploads
     # Push schema then start the server
     command: >
       sh -c "
