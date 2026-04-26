@@ -7,8 +7,8 @@ export const invoicesTable = pgTable("invoices", {
   numeroFacture: text("numero_facture").notNull().unique(),
   trimestre: text("trimestre").notNull(), // T1, T2, T3, T4
   year: integer("year").notNull(),
-  dateFormation: text("date_formation"), // stored as text e.g. "27&28/02/2025"
-  dateFacture: text("date_facture"), // stored as text e.g. "08/04/2025"
+  dateFormation: text("date_formation"), // stored as text e.g. "27&28/02/2026"
+  dateFacture: text("date_facture"), // stored as text e.g. "08/04/2026"
   clientId: integer("client_id"),
   cabinet: text("cabinet"),
   ville: text("ville"),
@@ -18,7 +18,7 @@ export const invoicesTable = pgTable("invoices", {
   numeroPaiement: text("numero_paiement"),
   datePaiement: text("date_paiement"), // stored as text
   statut: text("statut").notNull().default("en_attente"), // paye | regle | en_attente
-  dateDeclaration: text("date_declaration"), // stored as text e.g. "21/4/2025"
+  dateDeclaration: text("date_declaration"), // stored as text e.g. "21/4/2026"
   invoiceFileUrl: text("invoice_file_url"),
   invoiceDocxUrl: text("invoice_docx_url"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

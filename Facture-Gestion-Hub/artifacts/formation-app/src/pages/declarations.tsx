@@ -60,6 +60,7 @@ const TRIMESTRE_BADGE: Record<Trimestre, string> = {
 };
 
 const currentYear = new Date().getFullYear();
+const MIN_YEAR = 2026;
 const BASE = API_BASE;
 
 async function requestUploadUrl(file: File): Promise<{ uploadURL: string; objectPath: string }> {
@@ -105,7 +106,7 @@ function isImageFile(fileName: string): boolean {
 export function Declarations() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const { toast } = useToast();
-  const [selectedYear, setSelectedYear] = useState<number>(currentYear);
+  const [selectedYear, setSelectedYear] = useState<number>(Math.max(currentYear, MIN_YEAR));
   const printRef = useRef<HTMLDivElement>(null);
   const isAdmin = user?.role === "admin";
 
@@ -260,7 +261,10 @@ export function Declarations() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {[currentYear - 2, currentYear - 1, currentYear, currentYear + 1].map((y) => (
+              {Array.from(
+                { length: Math.max(1, (currentYear + 1) - MIN_YEAR + 1) },
+                (_, i) => MIN_YEAR + i,
+              ).map((y) => (
                 <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
               ))}
             </SelectContent>

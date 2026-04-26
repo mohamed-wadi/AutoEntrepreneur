@@ -15,7 +15,7 @@ A secure, hosted web platform for a Moroccan auto-entrepreneur managing training
 ## Features
 
 - **Two roles**: `admin` (full CRUD) and `viewer` (read-only, hidden Clients menu)
-- **Session auth**: express-session + bcryptjs; credentials admin/admin2025 and viewer/viewer2025
+- **Session auth**: express-session + bcryptjs; credentials admin/admin2026 and viewer/viewer2026
 - **Clients**: Card-based CRUD management (admin only), includes ICE field (Identifiant Commun de l'Entreprise)
 - **Invoices**: Full table with trimestre color coding, status badges, admin CRUD; computed Impôt (1%) per invoice; prestation combobox with autocomplete from history; Word (.docx) import that auto-fills fields with amber highlight; original filename preserved on docx download via ?filename= query param
 - **Declarations**: Auto-calculates Impôts (1%) and CNSS (tranche fixe) by quarter from invoice totals. CNSS uses 8-bracket table (0–500→300 DH, …, +50k→3600 DH). Each quarter has a document upload slot for official payment slips (PDF/image)

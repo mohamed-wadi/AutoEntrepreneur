@@ -22,8 +22,8 @@ Attends que les services soient `healthy`, puis ouvre :
 
 ## Comptes par défaut
 
-- **admin / admin2025**
-- **viewer / viewer2025**
+- **admin / admin2026**
+- **viewer / viewer2026**
 
 ## Arrêter
 

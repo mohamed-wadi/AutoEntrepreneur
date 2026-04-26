@@ -24,10 +24,11 @@ const CNSS_RATE = 0.0226;
 export function Dashboard() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const currentYear = new Date().getFullYear();
+  const MIN_YEAR = 2026;
   const currentTrimestreIndex = Math.floor(new Date().getMonth() / 3);
   const currentTrimestreLabel = ["T1", "T2", "T3", "T4"][currentTrimestreIndex];
   
-  const [selectedYear, setSelectedYear] = useState<number>(currentYear);
+  const [selectedYear, setSelectedYear] = useState<number>(Math.max(currentYear, MIN_YEAR));
 
   const { data: stats, isLoading } = useGetStats({
     year: selectedYear
@@ -75,7 +76,10 @@ export function Dashboard() {
             <SelectValue placeholder="Année" />
           </SelectTrigger>
           <SelectContent>
-            {[currentYear - 2, currentYear - 1, currentYear, currentYear + 1].map(year => (
+            {Array.from(
+              { length: Math.max(1, (currentYear + 1) - MIN_YEAR + 1) },
+              (_, i) => MIN_YEAR + i,
+            ).map((year) => (
               <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
             ))}
           </SelectContent>

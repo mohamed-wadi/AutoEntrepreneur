@@ -138,6 +138,7 @@ const TRIMESTRE_COLORS: Record<Trimestre, string> = {
 
 const BASE = API_BASE;
 const currentYear = new Date().getFullYear();
+const MIN_YEAR = 2026;
 const IMPOTS_RATE = 0.01;
 const CNSS_RATE = 0.0226;
 
@@ -265,7 +266,7 @@ export function Invoices() {
   type SortKey = "dateFormation" | "dateFacture" | "numeroFacture" | "montantDh" | "statut" | "trimestre";
   type SortDir = "asc" | "desc";
 
-  const [selectedYear, setSelectedYear] = useState<number>(currentYear);
+  const [selectedYear, setSelectedYear] = useState<number>(Math.max(currentYear, MIN_YEAR));
   const [filterTrimestre, setFilterTrimestre] = useState<string>("all");
   const [filterStatut, setFilterStatut] = useState<string>("all");
   const [sortKey, setSortKey] = useState<SortKey>("dateFormation");
@@ -784,7 +785,10 @@ export function Invoices() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {[currentYear - 2, currentYear - 1, currentYear, currentYear + 1].map((y) => (
+            {Array.from(
+              { length: Math.max(1, (currentYear + 1) - MIN_YEAR + 1) },
+              (_, i) => MIN_YEAR + i,
+            ).map((y) => (
               <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
             ))}
           </SelectContent>
@@ -1048,7 +1052,7 @@ export function Invoices() {
                   {...form.register("numeroFacture", { onChange: () => clearAutoFill("numeroFacture") })}
                   className={afClass("numeroFacture")}
                   data-testid="input-numero-facture"
-                  placeholder="Ex: 01/2025"
+                  placeholder={`Ex: 01/${currentYear}`}
                 />
                 {form.formState.errors.numeroFacture && (
                   <p className="text-xs text-red-500 mt-1">{form.formState.errors.numeroFacture.message}</p>
@@ -1176,7 +1180,7 @@ export function Invoices() {
                     id="dateFacture"
                     {...form.register("dateFacture", { onChange: () => clearAutoFill("dateFacture") })}
                     className={cn(afClass("dateFacture"), "flex-1")}
-                    placeholder="Ex: 05/02/2025"
+                    placeholder="Ex: 05/02/2026"
                     data-testid="input-date-facture"
                   />
                   <Popover>
@@ -1480,7 +1484,7 @@ export function Invoices() {
                   <Input
                     id="datePaiement"
                     {...form.register("datePaiement")}
-                    placeholder="Ex: 28/02/2025"
+                    placeholder="Ex: 28/02/2026"
                     data-testid="input-date-paiement"
                     className="flex-1"
                   />
@@ -1509,7 +1513,7 @@ export function Invoices() {
                   <Input
                     id="dateDeclaration"
                     {...form.register("dateDeclaration")}
-                    placeholder="Ex: 21/4/2025"
+                    placeholder="Ex: 21/4/2026"
                     data-testid="input-date-declaration"
                     className="flex-1"
                   />

@@ -120,22 +120,22 @@ export async function seedDatabase(): Promise<void> {
 
   if (existingAdmin.length === 0) {
     logger.info("Seeding default users...");
-    const adminHash = await bcrypt.hash("admin2025", 10);
-    const viewerHash = await bcrypt.hash("viewer2025", 10);
+    const adminHash = await bcrypt.hash("admin2026", 10);
+    const viewerHash = await bcrypt.hash("viewer2026", 10);
 
     await db.insert(usersTable).values([
       { username: "admin", passwordHash: adminHash, role: "admin" },
       { username: "viewer", passwordHash: viewerHash, role: "viewer" },
     ]);
-    logger.info("Default users seeded: admin/admin2025 and viewer/viewer2025");
+    logger.info("Default users seeded: admin/admin2026 and viewer/viewer2026");
   }
 
   if (process.env.SYNC_BUILTIN_USER_PASSWORDS?.trim() === "true") {
     logger.warn(
       "SYNC_BUILTIN_USER_PASSWORDS is enabled: resetting admin/viewer password hashes and 2FA fields",
     );
-    const adminHash = await bcrypt.hash("admin2025", 10);
-    const viewerHash = await bcrypt.hash("viewer2025", 10);
+    const adminHash = await bcrypt.hash("admin2026", 10);
+    const viewerHash = await bcrypt.hash("viewer2026", 10);
     await db
       .update(usersTable)
       .set({
@@ -183,11 +183,11 @@ export async function seedDatabase(): Promise<void> {
 
     await db.insert(invoicesTable).values([
       {
-        numeroFacture: "01/2025",
+        numeroFacture: "01/2026",
         trimestre: "T1",
-        year: 2025,
-        dateFormation: "05/02/2025",
-        dateFacture: "05/02/2025",
+        year: 2026,
+        dateFormation: "05/02/2026",
+        dateFacture: "05/02/2026",
         clientId: clientMap["TCERT MOROCCO TUV Nord"] ?? null,
         cabinet: "TCERT MOROCCO TUV Nord",
         ville: "Casablanca",
@@ -195,16 +195,16 @@ export async function seedDatabase(): Promise<void> {
         montantDh: "5300",
         modePaiement: "virement",
         numeroPaiement: "OPER.CREDIT REF-VMB7774",
-        datePaiement: "28/2/2025",
+        datePaiement: "28/2/2026",
         statut: "paye",
-        dateDeclaration: "21/4/2025",
+        dateDeclaration: "21/4/2026",
       },
       {
-        numeroFacture: "03/2025",
+        numeroFacture: "03/2026",
         trimestre: "T1",
-        year: 2025,
-        dateFormation: "18/3/2025",
-        dateFacture: "18/3/2025",
+        year: 2026,
+        dateFormation: "18/3/2026",
+        dateFacture: "18/3/2026",
         clientId: clientMap["EVIX MANAGEMENT"] ?? null,
         cabinet: "EVIX MANAGEMENT",
         ville: "Casablanca",
@@ -212,80 +212,80 @@ export async function seedDatabase(): Promise<void> {
         montantDh: "7500",
         modePaiement: "virement",
         numeroPaiement: "STE EVIX MANAGEMENT",
-        datePaiement: "25/3/2025",
+        datePaiement: "25/3/2026",
         statut: "paye",
-        dateDeclaration: "21/4/2025",
+        dateDeclaration: "21/4/2026",
       },
       {
-        numeroFacture: "02/2025",
+        numeroFacture: "02/2026",
         trimestre: "T2",
-        year: 2025,
-        dateFormation: "27&28/02/2025",
-        dateFacture: "08/03/2025",
+        year: 2026,
+        dateFormation: "27&28/02/2026",
+        dateFacture: "08/03/2026",
         clientId: clientMap["LMC"] ?? null,
         cabinet: "LMC",
         ville: "Fes",
         prestation: "Sauveteurs Secouristes du Travail",
         montantDh: "6000",
         modePaiement: "virement",
-        datePaiement: "03/6/2025",
+        datePaiement: "03/6/2026",
         statut: "paye",
         dateDeclaration: null,
       },
       {
-        numeroFacture: "04/2025",
+        numeroFacture: "04/2026",
         trimestre: "T2",
-        year: 2025,
-        dateFormation: "07&08/04/2025",
-        dateFacture: "08/04/2025",
+        year: 2026,
+        dateFormation: "07&08/04/2026",
+        dateFacture: "08/04/2026",
         clientId: clientMap["LMC"] ?? null,
         cabinet: "LMC",
         ville: "Ain Harrouda",
         prestation: "Sauveteurs Secouristes du Travail",
         montantDh: "5000",
         modePaiement: "virement",
-        datePaiement: "03/6/2025",
+        datePaiement: "03/6/2026",
         statut: "paye",
         dateDeclaration: null,
       },
       {
-        numeroFacture: "05/2025",
+        numeroFacture: "05/2026",
         trimestre: "T2",
-        year: 2025,
-        dateFormation: "17et19/04/2025",
-        dateFacture: "20/04/2025",
+        year: 2026,
+        dateFormation: "17et19/04/2026",
+        dateFacture: "20/04/2026",
         clientId: clientMap["LMC"] ?? null,
         cabinet: "LMC",
         ville: "Tanger",
         prestation: "SST & incendie",
         montantDh: "6500",
         modePaiement: "virement",
-        datePaiement: "03/6/2025",
+        datePaiement: "03/6/2026",
         statut: "paye",
         dateDeclaration: null,
       },
       {
-        numeroFacture: "06/2025",
+        numeroFacture: "06/2026",
         trimestre: "T2",
-        year: 2025,
-        dateFormation: "14/5/2025",
-        dateFacture: "20/5/2025",
+        year: 2026,
+        dateFormation: "14/5/2026",
+        dateFacture: "20/5/2026",
         clientId: clientMap["ESAQ"] ?? null,
         cabinet: "ESAQ",
         ville: "Casablanca",
         prestation: "Espaces confinés",
         montantDh: "3750",
         modePaiement: "virement",
-        datePaiement: "04/6/2025",
+        datePaiement: "04/6/2026",
         statut: "paye",
         dateDeclaration: null,
       },
       {
-        numeroFacture: "07/2025",
+        numeroFacture: "07/2026",
         trimestre: "T2",
-        year: 2025,
-        dateFormation: "28&29/05/2025",
-        dateFacture: "29/5/2025",
+        year: 2026,
+        dateFormation: "28&29/05/2026",
+        dateFacture: "29/5/2026",
         clientId: clientMap["LMC"] ?? null,
         cabinet: "LMC",
         ville: "Safi",

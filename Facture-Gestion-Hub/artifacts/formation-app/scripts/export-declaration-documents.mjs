@@ -8,9 +8,11 @@ const DB_USER = process.env.POSTGRES_USER ?? "admin";
 const DB_PASSWORD = process.env.POSTGRES_PASSWORD ?? "adminpassword";
 const DB_NAME = process.env.POSTGRES_DB ?? "facture_db";
 const IGNORED_YEARS = new Set(
-  (process.env.EXPORT_IGNORED_YEARS ?? "2025")
+  (process.env.EXPORT_IGNORED_YEARS ?? "")
     .split(",")
-    .map((v) => Number(v.trim()))
+    .map((v) => v.trim())
+    .filter((v) => v.length > 0)
+    .map((v) => Number(v))
     .filter((v) => Number.isFinite(v)),
 );
 
