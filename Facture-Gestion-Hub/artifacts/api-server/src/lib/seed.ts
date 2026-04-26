@@ -113,6 +113,7 @@ export async function seedDatabase(): Promise<void> {
   await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS two_factor_enabled BOOLEAN NOT NULL DEFAULT false`);
   await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS two_factor_secret_enc TEXT`);
   await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS two_factor_temp_secret_enc TEXT`);
+  await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT`);
   // Normalize invalid numeric values that break aggregates and UI (Postgres numeric supports NaN)
   await db.execute(sql`UPDATE invoices SET montant_dh = 0 WHERE montant_dh = 'NaN'::numeric`);
 

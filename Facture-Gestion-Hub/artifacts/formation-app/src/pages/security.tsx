@@ -12,6 +12,10 @@ import { Label } from "@/components/ui/label";
 export function SecurityPage() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const { toast } = useToast();
+  const [driveLink, setDriveLink] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    return window.localStorage.getItem("driveFolderUrl") ?? "";
+  });
   const [enabled, setEnabled] = useState<boolean>(false);
   const [password, setPassword] = useState("");
   const [otp, setOtp] = useState("");
@@ -137,6 +141,54 @@ export function SecurityPage() {
           <h1 className="text-3xl font-bold tracking-tight">Sécurité</h1>
           <p className="text-slate-500 mt-1">Active l'authentification à deux facteurs (OTP) via Google Authenticator.</p>
         </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Google Drive</CardTitle>
+            <CardDescription>Lien du dossier Drive (bouton “Drive” dans le menu).</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="drive-link">Lien Drive</Label>
+              <Input
+                id="drive-link"
+                value={driveLink}
+                onChange={(e) => setDriveLink(e.target.value)}
+                placeholder="Ex: https://drive.google.com/drive/folders/..."
+              />
+              <p className="text-xs text-slate-500">
+                Astuce: colle ici ton dossier “2026”. Exemple:{" "}
+                <code className="rounded bg-muted px-1">https://drive.google.com/drive/folders/…</code>
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  if (typeof window !== "undefined") {
+                    window.localStorage.setItem("driveFolderUrl", driveLink.trim());
+                  }
+                  toast({ title: "Lien Drive enregistré" });
+                }}
+                disabled={!driveLink.trim()}
+              >
+                Enregistrer
+              </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  const u = driveLink.trim();
+                  if (!u) return;
+                  window.open(u, "_blank", "noopener,noreferrer");
+                }}
+                disabled={!driveLink.trim()}
+              >
+                Ouvrir
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>

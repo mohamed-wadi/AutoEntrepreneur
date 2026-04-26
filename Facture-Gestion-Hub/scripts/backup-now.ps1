@@ -305,26 +305,32 @@ if ($upload -and $upload.ToLower() -eq "true") {
     $remote = [Environment]::GetEnvironmentVariable("GDRIVE_REMOTE", "Process")
     if (-not $remote) { $remote = "gdrive:" }
     $folderId = [Environment]::GetEnvironmentVariable("GDRIVE_FOLDER_ID", "Process")
-    $regRemote = [Environment]::GetEnvironmentVariable("REGISTRES_GDRIVE_REMOTE", "Process")
-    if (-not $regRemote) { $regRemote = $remote }
-    $regFolderId = [Environment]::GetEnvironmentVariable("REGISTRES_GDRIVE_FOLDER_ID", "Process")
-    $declRemote = [Environment]::GetEnvironmentVariable("DECLARATIONS_GDRIVE_REMOTE", "Process")
-    if (-not $declRemote) { $declRemote = $remote }
-    $declFolderId = [Environment]::GetEnvironmentVariable("DECLARATIONS_GDRIVE_FOLDER_ID", "Process")
-    $remotePeriodPath = "$remote$yearFolderName/$currentTrimestre/backups"
-    Write-Step "Uploading changed data to Google Drive folder: $yearFolderName/$currentTrimestre"
+    # NOTE:
+    # We intentionally keep *one* Drive root (GDRIVE_FOLDER_ID) and organize by year:
+    # <year>/Registres/T1..T4, <year>/Declarations/T1..T4, <year>/Backups_auto/T1..T4
+    # Dedicated root folders (REGISTRES_GDRIVE_FOLDER_ID / DECLARATIONS_GDRIVE_FOLDER_ID)
+    # are ignored to avoid legacy top-level folders like "Registres" and "Declarations".
+    $regRemote = $remote
+    $declRemote = $remote
+    # Target layout in Drive:
+    # <year>/
+    #   Registres/<T1..T4>/...
+    #   Declarations/<T1..T4>/...
+    #   Backups_auto/<T1..T4>/...
+    $remoteBackupsPath = "$remote$yearFolderName/Backups_auto/$currentTrimestre"
+    Write-Step "Uploading changed data to Google Drive folder: $yearFolderName (T=$currentTrimestre)"
 
     $common = @("--progress")
     if ($folderId) { $common += @("--drive-root-folder-id", $folderId) }
 
     if ($invoicesChanged) {
-      & $rcloneCmd copy $dumpFile $remotePeriodPath @common
+      & $rcloneCmd copy $dumpFile $remoteBackupsPath @common
       if ($LASTEXITCODE -ne 0) { throw "rclone upload failed for dump file." }
-      & $rcloneCmd copy $shaFile $remotePeriodPath @common
+      & $rcloneCmd copy $shaFile $remoteBackupsPath @common
       if ($LASTEXITCODE -ne 0) { throw "rclone upload failed for sha file." }
 
       if (Test-Path $uploadsZip) {
-        & $rcloneCmd copy $uploadsZip $remotePeriodPath @common
+        & $rcloneCmd copy $uploadsZip $remoteBackupsPath @common
         if ($LASTEXITCODE -ne 0) { throw "rclone upload failed for uploads zip." }
       }
 
@@ -339,26 +345,41 @@ if ($upload -and $upload.ToLower() -eq "true") {
       }
     }
 
-    # Upload Registres/<year>/<trimestre>/...xlsx for this run
+    # Upload Registres for the current year only under: <year>/Registres/<T..>/
     if ($invoicesChanged -and (Test-Path $registresRoot)) {
-      if ($regFolderId) {
-        $regCommon = @("--progress", "--drive-root-folder-id", $regFolderId)
-        & $rcloneCmd copy $registresRoot $regRemote @regCommon
-      } else {
-        & $rcloneCmd copy $registresRoot "$($remote)Registres" @common
+      $localRegYear = Join-Path $registresRoot $yearFolderName
+      if (Test-Path $localRegYear) {
+        & $rcloneCmd copy $localRegYear "$($remote)$yearFolderName/Registres" @common
+        if ($LASTEXITCODE -ne 0) { throw "rclone upload failed for Registres folder." }
       }
-      if ($LASTEXITCODE -ne 0) { throw "rclone upload failed for Registres folder." }
     }
 
-    # Upload Declarations/<year>/<trimestre>/... files from the website uploads
+    # Upload Declarations for the current year only under: <year>/Declarations/<T..>/
     if ($declarationsChanged -and (Test-Path $declarationsRoot)) {
-      if ($declFolderId) {
-        $declCommon = @("--progress", "--drive-root-folder-id", $declFolderId)
-        & $rcloneCmd copy $declarationsRoot $declRemote @declCommon
-      } else {
-        & $rcloneCmd copy $declarationsRoot "$($remote)Declarations" @common
+      $localDeclYear = Join-Path $declarationsRoot $yearFolderName
+      if (Test-Path $localDeclYear) {
+        & $rcloneCmd copy $localDeclYear "$($remote)$yearFolderName/Declarations" @common
+        if ($LASTEXITCODE -ne 0) { throw "rclone upload failed for Declarations folder." }
       }
-      if ($LASTEXITCODE -ne 0) { throw "rclone upload failed for Declarations folder." }
+    }
+
+    # Optional cleanup: remove legacy folders at the Drive root, if they exist.
+    # After switching to <year>/..., we no longer want top-level folders like:
+    # - Registres/
+    # - Declarations/
+    # - Backups_AutoEntrepreneur/
+    try {
+      $legacyRoots = @("Registres", "Declarations", "Backups_AutoEntrepreneur")
+      foreach ($name in $legacyRoots) {
+        $legacyPath = "$remote$name"
+        $entries = & $rcloneCmd lsf $legacyPath @common
+        if ($LASTEXITCODE -eq 0) {
+          Write-Step "Cleaning legacy Drive folder: $name/"
+          & $rcloneCmd purge $legacyPath @common
+        }
+      }
+    } catch {
+      Write-Step "Legacy Registres cleanup skipped (non-fatal)."
     }
   }
 }

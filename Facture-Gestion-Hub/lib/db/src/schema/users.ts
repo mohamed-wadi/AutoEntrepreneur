@@ -6,6 +6,7 @@ export const usersTable = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
+  avatarUrl: text("avatar_url"),
   role: text("role").notNull().default("viewer"), // "admin" | "viewer"
   twoFactorEnabled: boolean("two_factor_enabled").notNull().default(false),
   twoFactorSecretEnc: text("two_factor_secret_enc"),

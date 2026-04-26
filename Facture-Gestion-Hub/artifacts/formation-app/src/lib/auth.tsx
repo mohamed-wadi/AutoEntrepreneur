@@ -5,6 +5,7 @@ interface AuthUser {
   id: number;
   username: string;
   role: "admin" | "viewer";
+  avatarUrl?: string | null;
 }
 
 interface AuthContextType {

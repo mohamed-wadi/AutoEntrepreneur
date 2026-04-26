@@ -55,6 +55,7 @@ services:
       PORT: 19509
       BASE_PATH: /
       VITE_API_PROXY_TARGET: http://api:8080
+      VITE_DRIVE_FOLDER_URL: https://drive.google.com/drive/folders/1PDLAU2Mfz1G8JL1QES6C6pNDJldDKvrQ?usp=sharing
     ports:
       - "19509:19509"
     # Use your machine’s source so UI changes (logo, etc.) apply without rebuilding the image.

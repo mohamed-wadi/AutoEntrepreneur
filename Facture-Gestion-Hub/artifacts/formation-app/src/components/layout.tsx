@@ -10,7 +10,10 @@ import {
   LogOut,
   GraduationCap,
   Folder,
+  Settings,
   ShieldCheck,
+  HardDrive,
+  Globe,
   Menu,
 } from "lucide-react";
 import { Button } from "./ui/button";
@@ -22,6 +25,26 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { user, setUser } = useAuth();
   const logout = useLogout();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  const driveUrl = (() => {
+    if (typeof window === "undefined") return "https://drive.google.com";
+    const saved = window.localStorage.getItem("driveFolderUrl");
+    const envDefault = (import.meta as any).env?.VITE_DRIVE_FOLDER_URL as string | undefined;
+    return (
+      (saved && saved.trim()) ||
+      (envDefault && envDefault.trim()) ||
+      "https://drive.google.com/drive/folders/1PDLAU2Mfz1G8JL1QES6C6pNDJldDKvrQ?usp=sharing"
+    );
+  })();
+
+  const openDrive = () => {
+    setMobileNavOpen(false);
+    window.open(driveUrl, "_blank", "noopener,noreferrer");
+  };
+  const openAutoEntrepreneur = () => {
+    setMobileNavOpen(false);
+    window.open("https://rn.ae.gov.ma/login", "_blank", "noopener,noreferrer");
+  };
 
   const handleLogout = () => {
     setMobileNavOpen(false);
@@ -39,6 +62,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { href: "/formations", label: "Formations", icon: GraduationCap, show: user?.role === "admin" },
     { href: "/declarations", label: "Déclarations", icon: FileCheck, show: true },
     { href: "/files", label: "Mes Fichiers", icon: Folder, show: true },
+    { href: "__drive__", label: "Drive", icon: HardDrive, show: true },
+    { href: "__auto_entrepreneur__", label: "Auto entrepreneur", icon: Globe, show: true },
+    { href: "/settings", label: "Paramètres", icon: Settings, show: true },
     { href: "/security", label: "Sécurité", icon: ShieldCheck, show: true },
   ];
 
@@ -61,26 +87,51 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
           {visibleNav.map((item) => {
             const isActive = location === item.href;
+            const isDrive = item.href === "__drive__";
+            const isAutoEntrepreneur = item.href === "__auto_entrepreneur__";
             return (
-              <Link key={item.href} href={item.href}>
+              isDrive || isAutoEntrepreneur ? (
                 <Button
-                  variant={isActive ? "secondary" : "ghost"}
-                  className={`w-full justify-start ${isActive ? "font-medium" : "font-normal text-slate-600 dark:text-slate-400"}`}
-                  data-testid={`nav-${item.label.toLowerCase()}`}
+                  key={item.href}
+                  type="button"
+                  variant="ghost"
+                  onClick={isDrive ? openDrive : openAutoEntrepreneur}
+                  className="w-full justify-start font-normal text-slate-600 dark:text-slate-400"
+                  data-testid={isDrive ? "nav-drive" : "nav-auto-entrepreneur"}
+                  title={isDrive ? driveUrl : "https://rn.ae.gov.ma/login"}
                 >
                   <item.icon className="h-4 w-4 mr-3 shrink-0" />
                   {item.label}
                 </Button>
-              </Link>
+              ) : (
+                <Link key={item.href} href={item.href}>
+                  <Button
+                    variant={isActive ? "secondary" : "ghost"}
+                    className={`w-full justify-start ${isActive ? "font-medium" : "font-normal text-slate-600 dark:text-slate-400"}`}
+                    data-testid={`nav-${item.label.toLowerCase()}`}
+                  >
+                    <item.icon className="h-4 w-4 mr-3 shrink-0" />
+                    {item.label}
+                  </Button>
+                </Link>
+              )
             );
           })}
         </nav>
 
         <div className="p-4 border-t shrink-0">
           <div className="flex items-center mb-4 px-2">
-            <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-medium mr-3 shrink-0">
-              {(user?.username ?? "?").charAt(0).toUpperCase()}
-            </div>
+            {user?.avatarUrl ? (
+              <img
+                src={user.avatarUrl}
+                alt="Photo de profil"
+                className="w-8 h-8 rounded-full object-cover mr-3 shrink-0 border"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-medium mr-3 shrink-0">
+                {(user?.username ?? "?").charAt(0).toUpperCase()}
+              </div>
+            )}
             <div className="overflow-hidden min-w-0">
               <p className="text-sm font-medium truncate">{user?.username}</p>
               <p className="text-xs text-slate-500 capitalize">{user?.role}</p>
@@ -143,25 +194,50 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <nav className="flex-1 overflow-y-auto py-3 px-3 space-y-1">
                 {visibleNav.map((item) => {
                   const isActive = location === item.href;
+                  const isDrive = item.href === "__drive__";
+                  const isAutoEntrepreneur = item.href === "__auto_entrepreneur__";
                   return (
-                    <Link key={item.href} href={item.href} onClick={() => setMobileNavOpen(false)}>
+                    isDrive || isAutoEntrepreneur ? (
                       <Button
-                        variant={isActive ? "secondary" : "ghost"}
-                        className={`w-full justify-start ${isActive ? "font-medium" : "font-normal text-slate-600 dark:text-slate-400"}`}
-                        data-testid={`nav-mobile-${item.label.toLowerCase()}`}
+                        key={item.href}
+                        type="button"
+                        variant="ghost"
+                        onClick={isDrive ? openDrive : openAutoEntrepreneur}
+                        className="w-full justify-start font-normal text-slate-600 dark:text-slate-400"
+                        data-testid={isDrive ? "nav-mobile-drive" : "nav-mobile-auto-entrepreneur"}
+                        title={isDrive ? driveUrl : "https://rn.ae.gov.ma/login"}
                       >
                         <item.icon className="h-4 w-4 mr-3 shrink-0" />
                         {item.label}
                       </Button>
-                    </Link>
+                    ) : (
+                      <Link key={item.href} href={item.href} onClick={() => setMobileNavOpen(false)}>
+                        <Button
+                          variant={isActive ? "secondary" : "ghost"}
+                          className={`w-full justify-start ${isActive ? "font-medium" : "font-normal text-slate-600 dark:text-slate-400"}`}
+                          data-testid={`nav-mobile-${item.label.toLowerCase()}`}
+                        >
+                          <item.icon className="h-4 w-4 mr-3 shrink-0" />
+                          {item.label}
+                        </Button>
+                      </Link>
+                    )
                   );
                 })}
               </nav>
               <div className="p-4 border-t mt-auto shrink-0">
                 <div className="flex items-center mb-3 px-1">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-medium mr-3 shrink-0">
-                    {(user?.username ?? "?").charAt(0).toUpperCase()}
-                  </div>
+                  {user?.avatarUrl ? (
+                    <img
+                      src={user.avatarUrl}
+                      alt="Photo de profil"
+                      className="w-8 h-8 rounded-full object-cover mr-3 shrink-0 border"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-medium mr-3 shrink-0">
+                      {(user?.username ?? "?").charAt(0).toUpperCase()}
+                    </div>
+                  )}
                   <div className="overflow-hidden min-w-0">
                     <p className="text-sm font-medium truncate">{user?.username}</p>
                     <p className="text-xs text-slate-500 capitalize">{user?.role}</p>

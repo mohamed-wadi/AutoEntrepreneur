@@ -12,6 +12,7 @@ import { Declarations } from "@/pages/declarations";
 import { Formations } from "@/pages/formations";
 import { Files } from "@/pages/files";
 import { SecurityPage } from "@/pages/security";
+import { SettingsPage } from "@/pages/settings";
 import { API_BASE } from "@/lib/api-base";
 import { setBaseUrl } from "@workspace/api-client-react";
 
@@ -40,6 +41,7 @@ function Router() {
       <Route path="/formations" component={Formations} />
       <Route path="/declarations" component={Declarations} />
       <Route path="/files" component={Files} />
+      <Route path="/settings" component={SettingsPage} />
       <Route path="/security" component={SecurityPage} />
       <Route component={NotFound} />
     </Switch>

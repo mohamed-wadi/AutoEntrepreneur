@@ -3,7 +3,7 @@ import { Readable } from "stream";
 import fs from "fs";
 import { RequestUploadUrlBody } from "@workspace/api-zod";
 import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
-import { requireAuth, requireAdmin } from "../middlewares/auth";
+import { requireAuth } from "../middlewares/auth";
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
@@ -28,7 +28,7 @@ function guessContentTypeFromFileName(fileName: string): string {
  * The client sends JSON metadata (name, size, contentType) — NOT the file.
  * Then uploads the file directly to the returned presigned URL.
  */
-router.post("/storage/uploads/request-url", requireAdmin, async (req: Request, res: Response) => {
+router.post("/storage/uploads/request-url", requireAuth, async (req: Request, res: Response) => {
   const parsed = RequestUploadUrlBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Missing or invalid required fields" });
@@ -74,7 +74,7 @@ router.post("/storage/uploads/request-url", requireAdmin, async (req: Request, r
  */
 router.put(
   "/storage/local-upload/:id",
-  requireAdmin,
+  requireAuth,
   express.raw({ type: "*/*", limit: "15mb" }),
   async (req: Request, res: Response): Promise<void> => {
     if (!objectStorageService.isLocalStorage()) {
