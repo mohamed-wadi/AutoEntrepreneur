@@ -6,10 +6,11 @@ import { ListDeclarationsQueryParams } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/auth";
 
 const IMPOTS_RATE = 0.01; // 1%
+const CNSS_RATE = 0.0226;
 
 function computeCnss(quarterlyCA: number): number {
   if (quarterlyCA <= 0) return 0;
-  return Math.round(quarterlyCA * 0.031 * 100) / 100;
+  return Math.round(quarterlyCA * CNSS_RATE * 100) / 100;
 }
 
 const router: IRouter = Router();

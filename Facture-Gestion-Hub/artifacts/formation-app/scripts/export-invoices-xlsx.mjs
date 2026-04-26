@@ -8,6 +8,7 @@ const STAMP = process.env.EXPORT_STAMP;
 const DB_USER = process.env.POSTGRES_USER ?? "admin";
 const DB_PASSWORD = process.env.POSTGRES_PASSWORD ?? "adminpassword";
 const DB_NAME = process.env.POSTGRES_DB ?? "facture_db";
+const CNSS_RATE = 0.0226;
 const IGNORED_YEARS = new Set(
   (process.env.EXPORT_IGNORED_YEARS ?? "2025")
     .split(",")
@@ -81,7 +82,7 @@ FROM (
     i.statut,
     i.date_declaration AS "dateDeclaration",
     ROUND(COALESCE(i.montant_dh, 0) * 0.01, 2) AS "impotAPayer",
-    ROUND(COALESCE(i.montant_dh, 0) * 0.031, 2) AS "cnss"
+    ROUND(COALESCE(i.montant_dh, 0) * ${CNSS_RATE}, 2) AS "cnss"
   FROM invoices i
   LEFT JOIN clients c ON c.id = i.client_id
   ORDER BY i.year, i.trimestre, i.numero_facture
@@ -117,12 +118,12 @@ function buildWorkbook(rows, year, tri) {
 
   const totalMontant = rows.reduce((s, r) => s + Number(r.montantDh ?? 0), 0);
   const totalImpot = rows.reduce((s, r) => s + Number(r.impotAPayer ?? Number(r.montantDh) * 0.01), 0);
-  const totalCnss = rows.reduce((s, r) => s + Number(r.cnss ?? Number(r.montantDh) * 0.031), 0);
+  const totalCnss = rows.reduce((s, r) => s + Number(r.cnss ?? Number(r.montantDh) * CNSS_RATE), 0);
 
   const body = rows.map((r) => {
     const montant = Number(r.montantDh ?? 0);
     const impot = Number(r.impotAPayer ?? montant * 0.01);
-    const cnss = Number(r.cnss ?? montant * 0.031);
+    const cnss = Number(r.cnss ?? montant * CNSS_RATE);
     return [
       r.trimestre ?? "",
       r.dateFormation ?? "",

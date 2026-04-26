@@ -19,6 +19,8 @@ import {
 } from "@/components/ui/select";
 import { Loader2, TrendingUp, FileText, AlertCircle, Building2, Landmark } from "lucide-react";
 
+const CNSS_RATE = 0.0226;
+
 export function Dashboard() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const currentYear = new Date().getFullYear();
@@ -50,7 +52,7 @@ export function Dashboard() {
   const byTrimestre = stats?.byTrimestre ?? [];
   const currentQuarterData = byTrimestre.find((t) => t.trimestre === currentTrimestreLabel);
   const currentImpots = currentQuarterData ? currentQuarterData.totalMontant * 0.01 : 0;
-  const currentCnss = currentQuarterData ? currentQuarterData.totalMontant * 0.031 : 0;
+  const currentCnss = currentQuarterData ? currentQuarterData.totalMontant * CNSS_RATE : 0;
 
   return (
     <Layout>
@@ -136,7 +138,7 @@ export function Dashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-emerald-600" data-testid="stat-cnss">{formatDH(currentCnss)}</div>
-                <p className="text-xs text-slate-400 mt-1">3.1% du CA de {currentTrimestreLabel}</p>
+                <p className="text-xs text-slate-400 mt-1">Total CNSS calcule sur le CA de {currentTrimestreLabel}</p>
               </CardContent>
             </Card>
           </div>

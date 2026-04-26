@@ -252,7 +252,7 @@ export function Declarations() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Déclarations Trimestrielles</h1>
-          <p className="text-slate-500 mt-1">Calcul automatique Impôts (1%) et CNSS (3.1%)</p>
+          <p className="text-slate-500 mt-1">Calcul automatique Impôts (1%) et CNSS selon les montants des factures</p>
         </div>
         <div className="flex items-center gap-3">
           <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(parseInt(v))}>
@@ -302,7 +302,7 @@ export function Declarations() {
             <div className="bg-white rounded-lg border p-5 shadow-sm">
               <div className="flex items-center gap-3 mb-2">
                 <Building2 className="h-5 w-5 text-emerald-500" />
-                <span className="text-sm font-medium text-slate-600">CNSS totaux (3.1%)</span>
+                <span className="text-sm font-medium text-slate-600">CNSS totaux (somme des montants CNSS)</span>
               </div>
               <div className="text-2xl font-bold text-emerald-600" data-testid="total-cnss">{formatDH(totalCnss)}</div>
             </div>
@@ -314,7 +314,7 @@ export function Declarations() {
             <div className="hidden print:block mb-6">
               <h1 className="text-2xl font-bold">Déclarations Trimestrielles — {selectedYear}</h1>
               <p className="text-sm text-gray-500 mt-1">
-                Calcul automatique Impôts (1%) et CNSS (3.1%) • Généré le{" "}
+                Calcul automatique Impôts (1%) et CNSS • Généré le{" "}
                 {new Date().toLocaleDateString("fr-MA", { day: "2-digit", month: "long", year: "numeric" })}
               </p>
 
@@ -346,7 +346,7 @@ export function Declarations() {
                     <th className="px-4 py-3 text-center">Réglées</th>
                     <th className="px-4 py-3 text-center">En attente</th>
                     <th className="px-4 py-3 text-right">Impôts à payer (1%)</th>
-                    <th className="px-4 py-3 text-right">CNSS à payer (3.1%)</th>
+                    <th className="px-4 py-3 text-right">CNSS à payer</th>
                     <th className="px-4 py-3 text-left">Date Déclaration</th>
                   </tr>
                 </thead>
@@ -431,12 +431,11 @@ export function Declarations() {
             </p>
           </div>
 
-          {/* NOTE: CNSS calculation is now a flat 3.1% rate as per latest instructions */}
           <div className="mt-4 mb-8 grid grid-cols-1 md:grid-cols-2 gap-4 print:hidden">
             <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
               <p className="text-sm font-semibold text-emerald-800">Note sur la CNSS</p>
               <p className="text-xs text-emerald-700 mt-1">
-                La cotisation CNSS est calculée automatiquement au taux de 3.1% du chiffre d'affaires HT déclaré pour le trimestre.
+                Le total CNSS correspond a la somme des montants CNSS des factures du/des trimestre(s) affiche(s).
               </p>
             </div>
 

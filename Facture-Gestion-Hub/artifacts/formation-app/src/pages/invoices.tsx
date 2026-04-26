@@ -139,6 +139,7 @@ const TRIMESTRE_COLORS: Record<Trimestre, string> = {
 const BASE = API_BASE;
 const currentYear = new Date().getFullYear();
 const IMPOTS_RATE = 0.01;
+const CNSS_RATE = 0.0226;
 
 function getAutoTrimestre(): Trimestre {
   const month = new Date().getMonth() + 1;
@@ -322,7 +323,7 @@ export function Invoices() {
     const rows = invoices.map((inv) => {
       const montant = Number.isFinite(Number(inv.montantDh)) ? Number(inv.montantDh) : 0;
       const impot = inv.impotAPayer ?? montant * IMPOTS_RATE;
-      const cnss = inv.cnss ?? montant * 0.031;
+      const cnss = inv.cnss ?? montant * CNSS_RATE;
       return [
         inv.trimestre ?? "",
         inv.dateFormation ?? "",
@@ -345,7 +346,7 @@ export function Invoices() {
 
     const totalMontant = invoices.reduce((sum, inv) => sum + Number(inv.montantDh || 0), 0);
     const totalImpot = invoices.reduce((sum, inv) => sum + (inv.impotAPayer ?? Number(inv.montantDh) * IMPOTS_RATE), 0);
-    const totalCnss = invoices.reduce((sum, inv) => sum + (inv.cnss ?? Number(inv.montantDh) * 0.031), 0);
+    const totalCnss = invoices.reduce((sum, inv) => sum + (inv.cnss ?? Number(inv.montantDh) * CNSS_RATE), 0);
 
     const titleRow = ["Registre des Factures"];
     const metaRow = [`${invoices.length} facture(s) exportée(s)`];
@@ -942,7 +943,7 @@ export function Invoices() {
                         {formatDHSmall(impot)}
                       </td>
                       <td className="px-3 py-2 text-right text-xs text-emerald-700 font-bold" data-testid={`cnss-${inv.id}`}>
-                        {formatDHSmall(inv.cnss ?? montant * 0.031)}
+                        {formatDHSmall(inv.cnss ?? montant * CNSS_RATE)}
                       </td>
                       <td className="px-3 py-2 text-center">
                         {hasDocxUrl(inv.invoiceDocxUrl) ? (
@@ -1013,7 +1014,7 @@ export function Invoices() {
                     {formatDHSmall(invoices.reduce((sum, inv) => sum + (inv.impotAPayer ?? Number(inv.montantDh) * IMPOTS_RATE), 0))}
                   </td>
                   <td className="px-3 py-2 text-right text-xs text-emerald-700 font-bold">
-                    {formatDHSmall(invoices.reduce((sum, inv) => sum + (inv.cnss ?? Number(inv.montantDh) * 0.031), 0))}
+                    {formatDHSmall(invoices.reduce((sum, inv) => sum + (inv.cnss ?? Number(inv.montantDh) * CNSS_RATE), 0))}
                   </td>
                   <td className="px-3 py-2" />
                   {isAdmin && <td className="px-3 py-2" />}
@@ -1428,7 +1429,7 @@ export function Invoices() {
               />
               {form.watch("montantDh") > 0 && (
                 <p className="text-xs text-slate-500 mt-1">
-                  Impôt 1%: {formatDHSmall(Number(form.watch("montantDh")) * IMPOTS_RATE)} &nbsp;·&nbsp; CNSS 3.1%: {formatDHSmall(Number(form.watch("montantDh")) * 0.031)}
+                  Impôt 1%: {formatDHSmall(Number(form.watch("montantDh")) * IMPOTS_RATE)} &nbsp;·&nbsp; CNSS 2.26%: {formatDHSmall(Number(form.watch("montantDh")) * CNSS_RATE)}
                 </p>
               )}
               {form.formState.errors.montantDh && (
