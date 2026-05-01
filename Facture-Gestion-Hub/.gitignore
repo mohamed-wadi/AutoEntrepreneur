@@ -57,6 +57,8 @@ Thumbs.db
 !.env.example
 !.env.production.example
 cloudflare-tunnel.env
+smtp.env
+.env
 
 # Local backup artifacts
 backups/

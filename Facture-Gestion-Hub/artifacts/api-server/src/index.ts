@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { seedDatabase } from "./lib/seed";
+import { startDeclarationReminderJob } from "./lib/declarationReminder";
 
 const rawPort = process.env["PORT"];
 
@@ -28,4 +29,6 @@ app.listen(port, (err) => {
   seedDatabase().catch((e) => {
     logger.error({ err: e }, "Failed to seed database");
   });
+
+  startDeclarationReminderJob();
 });

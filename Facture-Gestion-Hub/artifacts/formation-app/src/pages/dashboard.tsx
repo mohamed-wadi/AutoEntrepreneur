@@ -17,15 +17,30 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
-import { Loader2, TrendingUp, FileText, AlertCircle, Building2, Landmark } from "lucide-react";
+import { Loader2, TrendingUp, FileText, AlertCircle, Building2, Landmark, BellRing } from "lucide-react";
 
 const CNSS_RATE = 0.0226;
 
+function getCurrentQuarter(monthIndex: number): "T1" | "T2" | "T3" | "T4" {
+  if (monthIndex <= 2) return "T1";
+  if (monthIndex <= 5) return "T2";
+  if (monthIndex <= 8) return "T3";
+  return "T4";
+}
+
+function getDeclarationDeadline(year: number, quarter: "T1" | "T2" | "T3" | "T4"): Date {
+  if (quarter === "T1") return new Date(year, 3, 30, 23, 59, 59, 999);
+  if (quarter === "T2") return new Date(year, 6, 31, 23, 59, 59, 999);
+  if (quarter === "T3") return new Date(year, 9, 31, 23, 59, 59, 999);
+  return new Date(year + 1, 0, 31, 23, 59, 59, 999);
+}
+
 export function Dashboard() {
   const { user, isLoading: isAuthLoading } = useAuth();
-  const currentYear = new Date().getFullYear();
+  const now = new Date();
+  const currentYear = now.getFullYear();
   const MIN_YEAR = 2026;
-  const currentTrimestreIndex = Math.floor(new Date().getMonth() / 3);
+  const currentTrimestreIndex = Math.floor(now.getMonth() / 3);
   const currentTrimestreLabel = ["T1", "T2", "T3", "T4"][currentTrimestreIndex];
   
   const [selectedYear, setSelectedYear] = useState<number>(Math.max(currentYear, MIN_YEAR));
@@ -54,6 +69,16 @@ export function Dashboard() {
   const currentQuarterData = byTrimestre.find((t) => t.trimestre === currentTrimestreLabel);
   const currentImpots = currentQuarterData ? currentQuarterData.totalMontant * 0.01 : 0;
   const currentCnss = currentQuarterData ? currentQuarterData.totalMontant * CNSS_RATE : 0;
+  const declarationQuarter = getCurrentQuarter(now.getMonth());
+  const declarationDeadline = getDeclarationDeadline(now.getFullYear(), declarationQuarter);
+  const daysLeft = Math.ceil((declarationDeadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  const declarationDeadlineLabel = declarationDeadline.toLocaleDateString("fr-MA", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+  const isOverdue = daysLeft < 0;
+  const isUrgent = daysLeft <= 10;
 
   return (
     <Layout>
@@ -92,6 +117,25 @@ export function Dashboard() {
         </div>
       ) : stats ? (
         <div className="space-y-8">
+          <Card className="border-red-300 bg-red-50 shadow-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base md:text-lg text-red-700 flex items-center gap-2">
+                <BellRing className="h-5 w-5" />
+                Rappel declaration {declarationQuarter}
+              </CardTitle>
+              <CardDescription className="text-red-700/90">
+                {isOverdue
+                  ? `Date limite depassee depuis ${Math.abs(daysLeft)} jour(s). Declarer immediatement.`
+                  : `Vous devez declarer le trimestre ${declarationQuarter} avant le ${declarationDeadlineLabel}.`}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <p className={`text-sm font-medium ${isUrgent ? "text-red-700" : "text-red-600"}`}>
+                {isOverdue ? "Retard de declaration en cours." : `Il reste ${daysLeft} jour(s) avant la date limite.`}
+              </p>
+            </CardContent>
+          </Card>
+
           {/* Main KPIs */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
             <Card>

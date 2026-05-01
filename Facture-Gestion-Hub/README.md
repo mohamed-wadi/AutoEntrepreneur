@@ -84,3 +84,27 @@ Pour envoyer les fichiers Excel de registres dans un dossier Drive dédié, rens
 ## API
 
 Backend Express pour la gestion des formations, factures et déclarations (routes sous `/api/...`).
+
+## Rappel declaration par WhatsApp (Meta Graph API)
+
+Le backend peut envoyer un rappel automatique 10 jours avant la date limite de declaration trimestrielle, uniquement via WhatsApp.
+
+### 1) Configurer le fichier d'environnement
+
+```bash
+copy smtp.env.example smtp.env
+```
+
+Puis remplir `smtp.env`:
+
+- `WHATSAPP_ENABLED=true`
+- `WHATSAPP_API_VERSION` (ex: `v22.0`)
+- `WHATSAPP_PHONE_NUMBER_ID` (depuis Meta for Developers)
+- `WHATSAPP_ACCESS_TOKEN` (token WhatsApp Cloud API)
+- `DECLARATION_REMINDER_WHATSAPP_TO` (CSV des numeros au format international, ex `2126...`)
+
+### 2) Redemarrer l'API
+
+```bash
+docker compose up -d --build api
+```

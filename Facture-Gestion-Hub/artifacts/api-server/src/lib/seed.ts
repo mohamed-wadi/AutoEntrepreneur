@@ -114,6 +114,21 @@ export async function seedDatabase(): Promise<void> {
   await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS two_factor_secret_enc TEXT`);
   await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS two_factor_temp_secret_enc TEXT`);
   await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT`);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS declaration_reminder_sends (
+      id SERIAL PRIMARY KEY,
+      channel TEXT NOT NULL,
+      quarter TEXT NOT NULL,
+      quarter_year INTEGER NOT NULL,
+      days_before_deadline INTEGER NOT NULL,
+      deadline_at TIMESTAMPTZ NOT NULL,
+      sent_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+  await db.execute(sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS declaration_reminder_sends_unique
+    ON declaration_reminder_sends (channel, quarter, quarter_year, days_before_deadline)
+  `);
   // Normalize invalid numeric values that break aggregates and UI (Postgres numeric supports NaN)
   await db.execute(sql`UPDATE invoices SET montant_dh = 0 WHERE montant_dh = 'NaN'::numeric`);
 

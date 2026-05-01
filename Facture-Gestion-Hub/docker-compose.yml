@@ -19,6 +19,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    env_file:
+      - ./smtp.env
     environment:
       DATABASE_URL: postgres://admin:adminpassword@db:5432/facture_db
       PORT: 8080
