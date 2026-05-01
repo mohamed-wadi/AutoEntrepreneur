@@ -30,5 +30,14 @@ app.listen(port, (err) => {
     logger.error({ err: e }, "Failed to seed database");
   });
 
-  startDeclarationReminderJob();
+  const localReminderEnabled =
+    (process.env["ENABLE_LOCAL_REMINDER_JOB"] ?? "false").toLowerCase() ===
+    "true";
+
+  if (localReminderEnabled) {
+    startDeclarationReminderJob();
+    logger.info("Local reminder job enabled");
+  } else {
+    logger.info("Local reminder job disabled (cloud-only mode)");
+  }
 });
