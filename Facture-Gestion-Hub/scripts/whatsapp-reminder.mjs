@@ -3,6 +3,7 @@ const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID?.trim();
 const apiVersion = process.env.WHATSAPP_API_VERSION?.trim() || "v25.0";
 const rawRecipients = process.env.DECLARATION_REMINDER_WHATSAPP_TO?.trim() || "";
 const dryRun = (process.env.DRY_RUN ?? "false").toLowerCase() === "true";
+const forceSend = (process.env.FORCE_SEND ?? "false").toLowerCase() === "true";
 
 const recipients = rawRecipients
   .split(",")
@@ -110,7 +111,7 @@ async function sendWhatsAppText(to, body) {
 async function main() {
   // Run hourly but send only around 09:00 Morocco time.
   const nowMz = nowInCasablancaParts();
-  if (nowMz.hour !== 9) {
+  if (!forceSend && nowMz.hour !== 9) {
     console.log("Skip: not 09:xx in Casablanca", nowMz);
     return;
   }
@@ -121,7 +122,7 @@ async function main() {
 
   const { quarter, deadline } = buildReminderTarget(nowCasablancaDate);
   const remainingDays = daysUntil(deadline, new Date());
-  if (remainingDays !== 10 && remainingDays !== 5) {
+  if (!forceSend && remainingDays !== 10 && remainingDays !== 5) {
     console.log("Skip: remainingDays is not 10 or 5", { remainingDays, quarter, deadline: deadline.toISOString() });
     return;
   }

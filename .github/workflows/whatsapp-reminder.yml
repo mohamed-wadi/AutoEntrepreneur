@@ -5,6 +5,11 @@ on:
     # Every hour; script sends only at 09:xx Casablanca time.
     - cron: "5 * * * *"
   workflow_dispatch:
+    inputs:
+      force_send:
+        description: "Force immediate send (bypass hour and J-10/J-5 checks)"
+        required: false
+        default: "false"
 
 jobs:
   reminder:
@@ -25,4 +30,5 @@ jobs:
           WHATSAPP_API_VERSION: ${{ secrets.WHATSAPP_API_VERSION }}
           DECLARATION_REMINDER_WHATSAPP_TO: ${{ secrets.DECLARATION_REMINDER_WHATSAPP_TO }}
           DRY_RUN: ${{ secrets.DRY_RUN }}
+          FORCE_SEND: ${{ github.event.inputs.force_send || 'false' }}
         run: node "Facture-Gestion-Hub/scripts/whatsapp-reminder.mjs"
