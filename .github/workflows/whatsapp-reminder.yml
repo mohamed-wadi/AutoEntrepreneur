@@ -25,4 +25,4 @@ jobs:
           WHATSAPP_API_VERSION: ${{ secrets.WHATSAPP_API_VERSION }}
           DECLARATION_REMINDER_WHATSAPP_TO: ${{ secrets.DECLARATION_REMINDER_WHATSAPP_TO }}
           DRY_RUN: ${{ secrets.DRY_RUN }}
-        run: node scripts/whatsapp-reminder.mjs
+        run: node "Facture-Gestion-Hub/scripts/whatsapp-reminder.mjs"
