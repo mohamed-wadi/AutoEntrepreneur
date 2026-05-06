@@ -131,8 +131,10 @@ function buildWorkbook(rows, year, tri) {
       r.dateFormation ?? "",
       r.dateFacture ?? "",
       r.numeroFacture ?? "",
-      r.cabinet ?? "",
+      // Keep export aligned with on-screen table semantics:
+      // "Cabinet" = selected dropdown entity (clientName), "Client" = free text field (cabinet).
       r.clientName ?? "",
+      r.cabinet ?? "",
       r.ville ?? "",
       r.prestation ?? "",
       formatMoney(montant),

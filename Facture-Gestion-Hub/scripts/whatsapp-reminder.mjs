@@ -122,8 +122,8 @@ async function main() {
 
   const { quarter, deadline } = buildReminderTarget(nowCasablancaDate);
   const remainingDays = daysUntil(deadline, new Date());
-  if (!forceSend && remainingDays !== 10 && remainingDays !== 5) {
-    console.log("Skip: remainingDays is not 10 or 5", { remainingDays, quarter, deadline: deadline.toISOString() });
+  if (!forceSend && remainingDays !== 20 && remainingDays !== 10) {
+    console.log("Skip: remainingDays is not 20 or 10", { remainingDays, quarter, deadline: deadline.toISOString() });
     return;
   }
 
