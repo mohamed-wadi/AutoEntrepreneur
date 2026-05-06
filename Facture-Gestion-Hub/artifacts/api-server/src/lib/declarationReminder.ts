@@ -158,8 +158,8 @@ async function checkAndSendDeclarationReminder(): Promise<void> {
   const { quarter, quarterYear, deadline } = getReminderTarget(now);
   const remainingDays = daysUntil(deadline, now);
 
-  if (remainingDays !== 20 && remainingDays !== 10) {
-    logger.debug({ remainingDays }, "Skipping reminder (not 20 or 10 days)");
+  if (remainingDays !== 10 && remainingDays !== 5) {
+    logger.debug({ remainingDays }, "Skipping reminder (not 10 or 5 days)");
     return;
   }
 

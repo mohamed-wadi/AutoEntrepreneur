@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       force_send:
-        description: "Force immediate send (bypass hour and J-20/J-10 checks)"
+        description: "Force immediate send (bypass hour and J-10/J-5 checks)"
         required: false
         default: "false"
 

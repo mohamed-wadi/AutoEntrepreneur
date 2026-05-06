@@ -372,10 +372,10 @@ if ($upload -and $upload.ToLower() -eq "true") {
       $legacyRoots = @("Registres", "Declarations", "Backups_AutoEntrepreneur")
       foreach ($name in $legacyRoots) {
         $legacyPath = "$remote$name"
-        $entries = & $rcloneCmd lsf $legacyPath @common
+        $entries = & $rcloneCmd lsf $legacyPath @common 2>$null
         if ($LASTEXITCODE -eq 0) {
           Write-Step "Cleaning legacy Drive folder: $name/"
-          & $rcloneCmd purge $legacyPath @common
+          & $rcloneCmd purge $legacyPath @common 2>$null
         }
       }
     } catch {
