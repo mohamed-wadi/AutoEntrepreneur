@@ -27,6 +27,7 @@ services:
       SESSION_SECRET: mysecret-docker-dev-2026
       # NOTE: keep this secret unique per environment.
       TWO_FACTOR_ENCRYPTION_KEY: local-dev-twofactor-secret
+      DISABLE_2FA: "true"
       NODE_ENV: development
       CORS_ORIGINS: http://localhost:19509,http://127.0.0.1:19509
       SYNC_DEFAULT_CATALOGS: "false"
