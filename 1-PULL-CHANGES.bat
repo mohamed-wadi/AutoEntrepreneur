@@ -25,7 +25,7 @@ if %errorlevel%==0 (
   echo.
   echo [INFO] Une nouvelle base de donnees a ete telechargee depuis GitHub.
   echo Restauration automatique en cours...
-  call 7-RESTAURER-BASE.bat
+  call Facture-Gestion-Hub\RESTAURER-BASE.bat
 ) else (
   echo.
   echo [INFO] Aucun changement de base de donnees detecte.

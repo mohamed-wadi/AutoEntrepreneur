@@ -3,7 +3,7 @@ setlocal EnableExtensions
 cd /d "%~dp0"
 
 echo ===================================================
-echo   RESTAURATION DE LA BASE DE DONNEES (THINKPAD)
+echo   RESTAURATION DE LA BASE DE DONNEES
 echo ===================================================
 echo.
 
@@ -18,40 +18,40 @@ if exist "%USERPROFILE%\Downloads\latest_uploads.zip" (
   set "ZIP_SOURCE=%USERPROFILE%\Downloads\latest_uploads.zip"
 )
 
-rem 2. Check in Files folder
+rem 2. Check in Files folder (parent directory relative to Facture-Gestion-Hub)
 if not defined DUMP_SOURCE (
-  if exist "Files\latest.dump" (
-    set "DUMP_SOURCE=Files\latest.dump"
+  if exist "..\Files\latest.dump" (
+    set "DUMP_SOURCE=..\Files\latest.dump"
   )
 )
 if not defined ZIP_SOURCE (
-  if exist "Files\latest_uploads.zip" (
-    set "ZIP_SOURCE=Files\latest_uploads.zip"
+  if exist "..\Files\latest_uploads.zip" (
+    set "ZIP_SOURCE=..\Files\latest_uploads.zip"
   )
 )
 
-rem 3. Check in project backups folder if not found
+rem 3. Check in backups folder
 if not defined DUMP_SOURCE (
-  if exist "Facture-Gestion-Hub\backups\latest.dump" (
-    set "DUMP_SOURCE=Facture-Gestion-Hub\backups\latest.dump"
+  if exist "backups\latest.dump" (
+    set "DUMP_SOURCE=backups\latest.dump"
   )
 )
 if not defined ZIP_SOURCE (
-  if exist "Facture-Gestion-Hub\backups\latest_uploads.zip" (
-    set "ZIP_SOURCE=Facture-Gestion-Hub\backups\latest_uploads.zip"
+  if exist "backups\latest_uploads.zip" (
+    set "ZIP_SOURCE=backups\latest_uploads.zip"
   )
 )
 
 if not defined DUMP_SOURCE (
   echo ERREUR: Fichier 'latest.dump' introuvable.
   echo Veuillez telecharger 'latest.dump' depuis votre Google Drive [ou le copier depuis l'ASUS]
-  echo et le placer dans votre dossier 'Telechargements' [Downloads], 'Files\' ou dans 'Facture-Gestion-Hub\backups\'.
+  echo et le placer dans votre dossier 'Telechargements' [Downloads], 'Files\' ou dans 'backups\'.
   echo.
   pause
   exit /b 1
 )
 
-rem Convert paths to absolute paths so they remain valid after cd
+rem Convert paths to absolute paths so they remain valid
 for %%i in ("%DUMP_SOURCE%") do set "DUMP_SOURCE=%%~fi"
 if defined ZIP_SOURCE (
   for %%i in ("%ZIP_SOURCE%") do set "ZIP_SOURCE=%%~fi"
@@ -65,7 +65,6 @@ echo.
 
 rem Make sure database is running and stop web/api to release database locks
 echo Verification de la base de donnees...
-cd Facture-Gestion-Hub
 docker compose stop api web >nul 2>&1
 docker compose up -d db
 if errorlevel 1 (
