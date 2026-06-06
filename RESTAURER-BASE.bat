@@ -18,7 +18,19 @@ if exist "%USERPROFILE%\Downloads\latest_uploads.zip" (
   set "ZIP_SOURCE=%USERPROFILE%\Downloads\latest_uploads.zip"
 )
 
-rem 2. Check in project backups folder if not found in Downloads
+rem 2. Check in Files folder
+if not defined DUMP_SOURCE (
+  if exist "Files\latest.dump" (
+    set "DUMP_SOURCE=Files\latest.dump"
+  )
+)
+if not defined ZIP_SOURCE (
+  if exist "Files\latest_uploads.zip" (
+    set "ZIP_SOURCE=Files\latest_uploads.zip"
+  )
+)
+
+rem 3. Check in project backups folder if not found
 if not defined DUMP_SOURCE (
   if exist "Facture-Gestion-Hub\backups\latest.dump" (
     set "DUMP_SOURCE=Facture-Gestion-Hub\backups\latest.dump"
@@ -33,7 +45,7 @@ if not defined ZIP_SOURCE (
 if not defined DUMP_SOURCE (
   echo ERREUR: Fichier 'latest.dump' introuvable.
   echo Veuillez telecharger 'latest.dump' depuis votre Google Drive (ou le copier depuis l'ASUS) 
-  echo et le placer dans votre dossier 'Telechargements' (Downloads) ou dans 'Facture-Gestion-Hub\backups\'.
+  echo et le placer dans votre dossier 'Telechargements' (Downloads), 'Files\' ou dans 'Facture-Gestion-Hub\backups\'.
   echo.
   pause
   exit /b 1
