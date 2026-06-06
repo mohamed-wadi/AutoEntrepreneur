@@ -4,12 +4,14 @@ cd /d "%~dp0"
 
 if not exist ".git" (
   echo ERREUR: Aucun depot Git ici.
-  echo Assure-toi d'etre dans: C:\Users\moham\OneDrive\Bureau\Auto Entrepreneur
+  echo Assure-toi d'etre dans le dossier racine du projet.
   pause
   exit /b 1
 )
 
 git add -A
+git reset -- *.lnk >nul 2>&1
+git reset -- */*.lnk >nul 2>&1
 
 git diff --cached --quiet
 if %errorlevel%==0 (
