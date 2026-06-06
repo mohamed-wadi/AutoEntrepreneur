@@ -44,8 +44,8 @@ if not defined ZIP_SOURCE (
 
 if not defined DUMP_SOURCE (
   echo ERREUR: Fichier 'latest.dump' introuvable.
-  echo Veuillez telecharger 'latest.dump' depuis votre Google Drive (ou le copier depuis l'ASUS) 
-  echo et le placer dans votre dossier 'Telechargements' (Downloads), 'Files\' ou dans 'Facture-Gestion-Hub\backups\'.
+  echo Veuillez telecharger 'latest.dump' depuis votre Google Drive [ou le copier depuis l'ASUS]
+  echo et le placer dans votre dossier 'Telechargements' [Downloads], 'Files\' ou dans 'Facture-Gestion-Hub\backups\'.
   echo.
   pause
   exit /b 1
@@ -77,7 +77,7 @@ if errorlevel 1 (
 
 docker compose exec -T db sh -lc "PGPASSWORD=adminpassword pg_restore -U admin -d facture_db --clean --if-exists /tmp/restore.dump"
 if errorlevel 1 (
-  echo Echec de la restauration de la base de donnees (pg_restore).
+  echo Echec de la restauration de la base de donnees [pg_restore].
   pause
   exit /b 1
 )
@@ -87,7 +87,7 @@ echo Restauration de la base de donnees effectuee avec succes !
 
 if defined ZIP_SOURCE (
   echo.
-  echo Restauration des fichiers de factures (uploads)...
+  echo Restauration des fichiers de factures [uploads]...
   powershell -Command "Expand-Archive -Path '%ZIP_SOURCE%' -DestinationPath '.local-uploads' -Force"
   if errorlevel 1 (
     echo Avertissement: Echec de l'extraction des fichiers d'uploads.
