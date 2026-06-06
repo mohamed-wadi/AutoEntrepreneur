@@ -61,12 +61,14 @@ smtp.env
 .env
 
 # Local backup artifacts
-backups/
+backups/*
+!backups/latest.dump
+!backups/latest.dump.sha256
+!backups/latest_uploads.zip
 *.sql
 *.sql.gz
 .recovery/
 backup.env
-backups/
 
 # Google Drive service account keys (NEVER commit)
 autoentrepreneur-backup-*.json
