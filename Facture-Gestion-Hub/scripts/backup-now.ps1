@@ -250,9 +250,15 @@ if ($invoicesChanged) {
   $exportPass = [Environment]::GetEnvironmentVariable("EXPORT_AUTH_PASSWORD", "Process")
   if ($exportUser) { $env:EXPORT_AUTH_USERNAME = $exportUser }
   if ($exportPass) { $env:EXPORT_AUTH_PASSWORD = $exportPass }
-  cmd /c "pnpm --filter @workspace/formation-app exec node ./scripts/export-invoices-xlsx.mjs"
-  if ($LASTEXITCODE -ne 0) {
-    throw "Registres XLSX export failed."
+  
+  $pnpmCheck = Get-Command pnpm -ErrorAction SilentlyContinue
+  if ($pnpmCheck) {
+    cmd /c "pnpm --filter @workspace/formation-app exec node ./scripts/export-invoices-xlsx.mjs"
+    if ($LASTEXITCODE -ne 0) {
+      throw "Registres XLSX export failed."
+    }
+  } else {
+    Write-Step "WARNING: pnpm not found on host. Skipping Registres XLSX export (non-fatal)."
   }
 } else {
   Write-Step "Invoices unchanged: skip DB dump and Registres export."
@@ -263,9 +269,15 @@ if ($declarationsChanged) {
   Write-Step "Declarations changed: exporting declaration documents by year/trimestre..."
   $env:DECLARATIONS_OUTPUT_DIR = $declarationsRoot
   $env:LOCAL_UPLOAD_ROOT = $uploadsRoot
-  cmd /c "pnpm --filter @workspace/formation-app exec node ./scripts/export-declaration-documents.mjs"
-  if ($LASTEXITCODE -ne 0) {
-    throw "Declaration documents export failed."
+  
+  $pnpmCheck = Get-Command pnpm -ErrorAction SilentlyContinue
+  if ($pnpmCheck) {
+    cmd /c "pnpm --filter @workspace/formation-app exec node ./scripts/export-declaration-documents.mjs"
+    if ($LASTEXITCODE -ne 0) {
+      throw "Declaration documents export failed."
+    }
+  } else {
+    Write-Step "WARNING: pnpm not found on host. Skipping declaration documents export (non-fatal)."
   }
 } else {
   Write-Step "Declarations unchanged: skip declaration documents export."
