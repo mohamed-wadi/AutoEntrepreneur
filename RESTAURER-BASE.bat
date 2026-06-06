@@ -51,15 +51,22 @@ if not defined DUMP_SOURCE (
   exit /b 1
 )
 
+rem Convert paths to absolute paths so they remain valid after cd
+for %%i in ("%DUMP_SOURCE%") do set "DUMP_SOURCE=%%~fi"
+if defined ZIP_SOURCE (
+  for %%i in ("%ZIP_SOURCE%") do set "ZIP_SOURCE=%%~fi"
+)
+
 echo Fichier dump trouve : %DUMP_SOURCE%
 if defined ZIP_SOURCE (
   echo Fichier uploads trouve : %ZIP_SOURCE%
 )
 echo.
 
-rem Make sure database is running
+rem Make sure database is running and stop web/api to release database locks
 echo Verification de la base de donnees...
 cd Facture-Gestion-Hub
+docker compose stop api web >nul 2>&1
 docker compose up -d db
 if errorlevel 1 (
   echo Echec demarrage de la base de donnees. Assurez-vous que Docker Desktop est lance.
