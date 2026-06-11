@@ -777,6 +777,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/TrimestreStats"
+        byCabinet:
+          type: array
+          items:
+            $ref: "#/components/schemas/CabinetStats"
       required:
         - year
         - totalMontantAnnuel
@@ -785,3 +789,18 @@ components:
         - totalImpotsAnnuel
         - totalCnssAnnuel
         - byTrimestre
+        - byCabinet
+
+    CabinetStats:
+      type: object
+      properties:
+        clientId:
+          type: ["integer", "null"]
+        cabinetName:
+          type: string
+        totalMontant:
+          type: number
+      required:
+        - cabinetName
+        - totalMontant
+

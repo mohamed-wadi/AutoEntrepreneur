@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { invoicesTable } from "@workspace/db";
+import { invoicesTable, clientsTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
 import { GetStatsQueryParams } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/auth";
@@ -65,6 +65,23 @@ router.get("/stats", requireAuth, async (req, res): Promise<void> => {
     };
   });
 
+  const byCabinetRows = await db
+    .select({
+      clientId: invoicesTable.clientId,
+      cabinetName: sql<string>`COALESCE(${clientsTable.name}, ${invoicesTable.cabinet})`,
+      totalMontant: sql<string>`COALESCE(SUM(${invoicesTable.montantDh}), 0)`,
+    })
+    .from(invoicesTable)
+    .leftJoin(clientsTable, eq(invoicesTable.clientId, clientsTable.id))
+    .where(eq(invoicesTable.year, year))
+    .groupBy(invoicesTable.clientId, clientsTable.name, invoicesTable.cabinet);
+
+  const byCabinet = byCabinetRows.map((r) => ({
+    clientId: r.clientId,
+    cabinetName: (r.cabinetName || "").trim() || "Cabinet sans nom",
+    totalMontant: toFiniteNumber(r.totalMontant, 0),
+  }));
+
   const totalMontantAnnuel = totals ? toFiniteNumber(totals.totalMontantAnnuel, 0) : 0;
   const totalCnssAnnuel = byTrimestre.reduce((sum, t) => sum + computeCnss(t.totalMontant), 0);
 
@@ -76,6 +93,7 @@ router.get("/stats", requireAuth, async (req, res): Promise<void> => {
     totalImpotsAnnuel: Math.round(toFiniteNumber(totalMontantAnnuel, 0) * IMPOTS_RATE * 100) / 100,
     totalCnssAnnuel,
     byTrimestre,
+    byCabinet,
   });
 });
 

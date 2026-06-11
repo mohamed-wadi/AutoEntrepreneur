@@ -6,6 +6,8 @@ import {
   useCreateClient,
   useUpdateClient,
   useDeleteClient,
+  useGetStats,
+  getGetStatsQueryKey,
 } from "@workspace/api-client-react";
 import type { Client } from "@workspace/api-client-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -32,7 +34,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Loader2, Users, Building2, Phone, User, Hash, Search, Eye, Download, Upload, FileText, Image, ChevronDown } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, Users, Building2, Phone, User, Hash, Search, Eye, Download, Upload, FileText, Image, ChevronDown, TrendingUp } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -100,6 +102,30 @@ export function Clients() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const isAdmin = user?.role === "admin";
+  const now = new Date();
+  const currentYear = now.getFullYear();
+
+  const { data: stats } = useGetStats(
+    { year: currentYear },
+    { query: { queryKey: getGetStatsQueryKey({ year: currentYear }), enabled: !!user } }
+  );
+
+  // Build a map: cabinetName -> totalMontant for current year
+  const cabinetCaMap = new Map<string, number>();
+  for (const c of stats?.byCabinet ?? []) {
+    const prev = cabinetCaMap.get(c.cabinetName) ?? 0;
+    cabinetCaMap.set(c.cabinetName, prev + c.totalMontant);
+  }
+
+  const PLAFOND_CABINET = 100_000;
+  const formatDH = (n: number) => new Intl.NumberFormat('fr-MA', { style: 'currency', currency: 'MAD', maximumFractionDigits: 0 }).format(n);
+
+  function caColor(total: number) {
+    if (total >= PLAFOND_CABINET) return "bg-red-100 text-red-700 border-red-300";
+    if (total >= PLAFOND_CABINET * 0.8) return "bg-orange-100 text-orange-700 border-orange-300";
+    if (total > 0) return "bg-emerald-100 text-emerald-700 border-emerald-300";
+    return "bg-slate-100 text-slate-500 border-slate-200";
+  }
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
@@ -331,6 +357,7 @@ export function Clients() {
                 <th scope="col" className="px-4 py-3 text-left">Contact</th>
                 <th scope="col" className="px-4 py-3 text-left">Téléphone</th>
                 <th scope="col" className="px-4 py-3 text-left">ICE</th>
+                <th scope="col" className="px-4 py-3 text-left">CA {currentYear}</th>
                 <th scope="col" className="px-4 py-3 text-left">Fichiers</th>
                 {isAdmin && <th scope="col" className="px-4 py-3 text-center w-28">Actions</th>}
               </tr>
@@ -392,6 +419,28 @@ export function Clients() {
                     ) : (
                       <span className="text-slate-400">—</span>
                     )}
+                  </td>
+                  <td className="px-4 py-3">
+                    {(() => {
+                      const total = cabinetCaMap.get(client.name) ?? 0;
+                      const ratio = Math.min(total / PLAFOND_CABINET, 1);
+                      return (
+                        <div className="min-w-[130px]">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-semibold ${caColor(total)}`}>
+                            <TrendingUp className="h-3 w-3" />
+                            {total > 0 ? formatDH(total) : "—"}
+                          </span>
+                          {total > 0 && (
+                            <div className="mt-1 w-full bg-slate-200 rounded-full h-1.5">
+                              <div
+                                className={`h-1.5 rounded-full ${total >= PLAFOND_CABINET ? 'bg-red-500' : total >= PLAFOND_CABINET * 0.8 ? 'bg-orange-400' : 'bg-emerald-500'}`}
+                                style={{ width: `${ratio * 100}%` }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </td>
                   <td className="px-4 py-3 text-slate-600 align-top">
                     <div className="min-w-[320px] space-y-2">

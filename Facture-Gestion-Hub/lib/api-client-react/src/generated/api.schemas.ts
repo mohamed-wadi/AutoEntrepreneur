@@ -337,6 +337,13 @@ export interface TrimestreStats {
   pendingCount: number;
 }
 
+export interface CabinetStats {
+  /** @nullable */
+  clientId?: number | null;
+  cabinetName: string;
+  totalMontant: number;
+}
+
 export interface Stats {
   year: number;
   totalMontantAnnuel: number;
@@ -345,6 +352,7 @@ export interface Stats {
   totalImpotsAnnuel: number;
   totalCnssAnnuel: number;
   byTrimestre: TrimestreStats[];
+  byCabinet: CabinetStats[];
 }
 
 export type ListInvoicesParams = {

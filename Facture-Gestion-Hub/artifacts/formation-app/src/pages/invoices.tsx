@@ -11,6 +11,8 @@ import {
   useCreateClient,
   useGetNextNumeroFacture,
   getGetNextNumeroFactureQueryKey,
+  useGetStats,
+  getGetStatsQueryKey,
 } from "@workspace/api-client-react";
 import type { Invoice, Client } from "@workspace/api-client-react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
@@ -61,7 +63,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import {
   Plus, Pencil, Trash2, Loader2, FileText, Filter, Upload,
-  ChevronUp, ChevronDown, ChevronsUpDown, Check, Wand2, Calendar as CalendarIcon, Calendar, Download, Printer, FileSpreadsheet,
+  ChevronUp, ChevronDown, ChevronsUpDown, Check, Wand2, Calendar as CalendarIcon, Calendar, Download, Printer, FileSpreadsheet, AlertTriangle,
 } from "lucide-react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -141,6 +143,8 @@ const currentYear = new Date().getFullYear();
 const MIN_YEAR = 2026;
 const IMPOTS_RATE = 0.01;
 const CNSS_RATE = 0.0226;
+const PLAFOND_GLOBAL = 200_000;
+const PLAFOND_CABINET = 100_000;
 
 function getAutoTrimestre(): Trimestre {
   const month = new Date().getMonth() + 1;
@@ -269,7 +273,7 @@ export function Invoices() {
   const [selectedYear, setSelectedYear] = useState<number>(Math.max(currentYear, MIN_YEAR));
   const [filterTrimestre, setFilterTrimestre] = useState<string>("all");
   const [filterStatut, setFilterStatut] = useState<string>("all");
-  const [sortKey, setSortKey] = useState<SortKey>("dateFormation");
+  const [sortKey, setSortKey] = useState<SortKey>("numeroFacture");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
@@ -505,6 +509,7 @@ export function Invoices() {
     enabled: !!user,
   });
 
+
   const createInvoice = useCreateInvoice();
   const updateInvoice = useUpdateInvoice();
   const deleteInvoice = useDeleteInvoice();
@@ -527,6 +532,47 @@ export function Invoices() {
       invoiceDocxUrl: "",
     },
   });
+
+  // ── Stats pour le calcul des plafonds en temps réel (doit être APRES useForm) ──
+  const formYear = form.watch("year") || selectedYear;
+  const { data: statsForYear } = useGetStats(
+    { year: formYear },
+    { query: { queryKey: getGetStatsQueryKey({ year: formYear }), enabled: !!user && isFormOpen } }
+  );
+
+  const caGlobalExistant = statsForYear?.totalMontantAnnuel ?? 0;
+  const byCabinetExistant = statsForYear?.byCabinet ?? [];
+
+  const formClientId = form.watch("clientId");
+  const formCabinetText = form.watch("cabinet");
+  const formMontant = Number(form.watch("montantDh")) || 0;
+  const editingId = editingInvoice?.id;
+
+  const selectedClientName = formClientId
+    ? clients.find((c: { id: number; name: string }) => c.id === formClientId)?.name ?? null
+    : null;
+  const cabinetKey = selectedClientName || formCabinetText || null;
+
+  const cabinetCurrentCA = cabinetKey
+    ? byCabinetExistant
+        .filter((c: { cabinetName: string; totalMontant: number }) => c.cabinetName === cabinetKey)
+        .reduce((s: number, c: { cabinetName: string; totalMontant: number }) => s + c.totalMontant, 0)
+    : 0;
+
+  const editingMontant = editingInvoice?.montantDh ? Number(editingInvoice.montantDh) : 0;
+  const adjustedGlobal = caGlobalExistant - (editingId ? editingMontant : 0);
+  const adjustedCabinet = cabinetCurrentCA - (editingId && selectedClientName ? editingMontant : 0);
+
+  const newGlobal = adjustedGlobal + formMontant;
+  const newCabinet = adjustedCabinet + formMontant;
+
+  const warnGlobal = formMontant > 0 && newGlobal > PLAFOND_GLOBAL;
+  const warnWarnGlobal = formMontant > 0 && !warnGlobal && newGlobal >= PLAFOND_GLOBAL * 0.8;
+  const warnCabinet = cabinetKey && formMontant > 0 && newCabinet > PLAFOND_CABINET;
+  const warnWarnCabinet = cabinetKey && formMontant > 0 && !warnCabinet && newCabinet >= PLAFOND_CABINET * 0.8;
+
+  const formatDHFmt = (n: number) => new Intl.NumberFormat('fr-MA', { style: 'currency', currency: 'MAD', maximumFractionDigits: 0 }).format(n);
+
 
   const openCreate = () => {
     setEditingInvoice(null);
@@ -1233,7 +1279,7 @@ export function Invoices() {
                       >
                         <SelectValue placeholder="Choisir dans la liste des cabinets" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="max-h-60 overflow-y-auto">
                         <SelectItem value="none">Aucun</SelectItem>
                         {clients.map((c) => (
                           <SelectItem key={c.id} value={c.id.toString()}>{c.name}</SelectItem>
@@ -1346,7 +1392,7 @@ export function Invoices() {
                             }}
                             data-testid="input-prestation-search"
                           />
-                          <CommandList>
+                          <CommandList className="max-h-52 overflow-y-auto">
                             <CommandEmpty className="py-2 px-4 text-xs">
                               <Button
                                 type="button"
@@ -1438,6 +1484,29 @@ export function Invoices() {
               )}
               {form.formState.errors.montantDh && (
                 <p className="text-xs text-red-500 mt-1">{form.formState.errors.montantDh.message}</p>
+              )}
+
+              {/* ── Alertes plafond en temps réel (non bloquantes) ── */}
+              {(warnGlobal || warnWarnGlobal || warnCabinet || warnWarnCabinet) && (
+                <div className={`mt-2 rounded-md border px-3 py-2 text-xs space-y-1 ${(warnGlobal || warnCabinet) ? "border-red-300 bg-red-50 text-red-700" : "border-orange-300 bg-orange-50 text-orange-700"}`}>
+                  <div className="flex items-center gap-1.5 font-semibold">
+                    <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                    {(warnGlobal || warnCabinet) ? "⛔ Plafond dépassé — Avertissement" : "⚠️ Vigilance — Plafond proche"}
+                    <span className="font-normal text-[10px] ml-auto opacity-70">(la facture peut quand même être enregistrée)</span>
+                  </div>
+                  {warnGlobal && (
+                    <p>CA global prévu : <strong>{formatDHFmt(newGlobal)}</strong> — dépasse le plafond annuel de <strong>200 000 DH</strong>.</p>
+                  )}
+                  {warnWarnGlobal && (
+                    <p>CA global prévu : <strong>{formatDHFmt(newGlobal)}</strong> — approche du plafond annuel de 200 000 DH.</p>
+                  )}
+                  {warnCabinet && (
+                    <p>CA <em>{cabinetKey}</em> prévu : <strong>{formatDHFmt(newCabinet)}</strong> — dépasse le plafond de <strong>100 000 DH</strong> par cabinet.</p>
+                  )}
+                  {warnWarnCabinet && (
+                    <p>CA <em>{cabinetKey}</em> prévu : <strong>{formatDHFmt(newCabinet)}</strong> — approche du plafond de 100 000 DH par cabinet.</p>
+                  )}
+                </div>
               )}
             </div>
 
