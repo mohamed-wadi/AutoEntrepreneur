@@ -38,7 +38,7 @@ if not exist "%CFEXE%" (
 
 echo --- Logs cloudflared ^(le lien est la ligne https dans le cadre +---^) ---
 echo.
-"%CFEXE%" tunnel --url "%LOCAL_URL%"
+"%CFEXE%" tunnel --url "%LOCAL_URL%" --protocol http2
 
 echo.
 pause
