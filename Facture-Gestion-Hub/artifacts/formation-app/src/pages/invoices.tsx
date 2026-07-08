@@ -486,7 +486,7 @@ export function Invoices() {
       if (sortKey === "montantDh") return Number(a.montantDh) - Number(b.montantDh);
       const av = a[sortKey] ?? "";
       const bv = b[sortKey] ?? "";
-      return String(av).localeCompare(String(bv));
+      return String(av).localeCompare(String(bv), undefined, { numeric: true });
     })();
     return sortDir === "asc" ? cmp : -cmp;
   });
