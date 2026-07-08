@@ -144,7 +144,7 @@ const MIN_YEAR = 2026;
 const IMPOTS_RATE = 0.01;
 const CNSS_RATE = 0.0226;
 const PLAFOND_GLOBAL = 200_000;
-const PLAFOND_CABINET = 100_000;
+const PLAFOND_CABINET = 80_000;
 
 function getAutoTrimestre(): Trimestre {
   const month = new Date().getMonth() + 1;
@@ -1501,10 +1501,10 @@ export function Invoices() {
                     <p>CA global prévu : <strong>{formatDHFmt(newGlobal)}</strong> — approche du plafond annuel de 200 000 DH.</p>
                   )}
                   {warnCabinet && (
-                    <p>CA <em>{cabinetKey}</em> prévu : <strong>{formatDHFmt(newCabinet)}</strong> — dépasse le plafond de <strong>100 000 DH</strong> par cabinet.</p>
+                    <p>CA <em>{cabinetKey}</em> prévu : <strong>{formatDHFmt(newCabinet)}</strong> — dépasse le plafond de <strong>80 000 DH</strong> par cabinet.</p>
                   )}
                   {warnWarnCabinet && (
-                    <p>CA <em>{cabinetKey}</em> prévu : <strong>{formatDHFmt(newCabinet)}</strong> — approche du plafond de 100 000 DH par cabinet.</p>
+                    <p>CA <em>{cabinetKey}</em> prévu : <strong>{formatDHFmt(newCabinet)}</strong> — approche du plafond de 80 000 DH par cabinet.</p>
                   )}
                 </div>
               )}

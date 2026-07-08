@@ -117,7 +117,7 @@ export function Clients() {
     cabinetCaMap.set(c.cabinetName, prev + c.totalMontant);
   }
 
-  const PLAFOND_CABINET = 100_000;
+  const PLAFOND_CABINET = 80_000;
   const formatDH = (n: number) => new Intl.NumberFormat('fr-MA', { style: 'currency', currency: 'MAD', maximumFractionDigits: 0 }).format(n);
 
   function caColor(total: number) {

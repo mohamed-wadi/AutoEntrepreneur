@@ -23,7 +23,7 @@ const CNSS_RATE = 0.0226;
 
 // ─── Plafond réglementaire auto-entrepreneur ───────────────────────────────
 const PLAFOND_GLOBAL = 200_000;      // 200 000 DH / an
-const PLAFOND_CABINET = 100_000;     // 100 000 DH / an par cabinet
+const PLAFOND_CABINET = 80_000;      // 80 000 DH / an par cabinet
 const WARN_RATIO = 0.80;             // alerte orange à 80%
 
 function getCurrentQuarter(monthIndex: number): "T1" | "T2" | "T3" | "T4" {
@@ -164,7 +164,7 @@ export function Dashboard() {
                 )}
                 {anyDangerCabinet && (
                   <p className="text-sm text-red-600 mt-0.5">
-                    Un ou plusieurs cabinets dépassent le plafond de <strong>100 000 DH</strong> par an — voir le tableau ci-dessous.
+                    Un ou plusieurs cabinets dépassent le plafond de <strong>80 000 DH</strong> par an — voir le tableau ci-dessous.
                   </p>
                 )}
               </div>
@@ -183,7 +183,7 @@ export function Dashboard() {
                 )}
                 {anyWarnCabinet && (
                   <p className="text-sm text-orange-600 mt-0.5">
-                    Un ou plusieurs cabinets approchent du plafond de 100 000 DH — voir le tableau ci-dessous.
+                    Un ou plusieurs cabinets approchent du plafond de 80 000 DH — voir le tableau ci-dessous.
                   </p>
                 )}
               </div>
@@ -301,7 +301,7 @@ export function Dashboard() {
             {cabinetList.length > 0 && (
               <>
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-base font-semibold text-slate-600">Top 3 cabinets les plus proches du plafond (100 000 DH/an)</h3>
+                  <h3 className="text-base font-semibold text-slate-600">Top 3 cabinets les plus proches du plafond (80 000 DH/an)</h3>
                   {cabinetList.length > 3 && (
                     <a href="/clients" className="text-xs text-indigo-600 hover:underline font-medium">
                       Voir les {cabinetList.length} cabinets →
