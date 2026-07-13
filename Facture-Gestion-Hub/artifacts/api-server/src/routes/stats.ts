@@ -15,7 +15,15 @@ function toFiniteNumber(value: unknown, fallback = 0): number {
 
 function computeCnss(quarterlyCA: number): number {
   if (quarterlyCA <= 0) return 0;
-  return Math.round(quarterlyCA * CNSS_RATE * 100) / 100;
+  const ir = quarterlyCA * IMPOTS_RATE;
+  if (ir <= 125) return 300;
+  if (ir <= 250) return 390;
+  if (ir <= 625) return 570;
+  if (ir <= 1250) return 720;
+  if (ir <= 2500) return 1050;
+  if (ir <= 6250) return 1500;
+  if (ir <= 12500) return 2250;
+  return 3600;
 }
 
 const router: IRouter = Router();

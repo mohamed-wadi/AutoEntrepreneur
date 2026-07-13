@@ -99,6 +99,19 @@ async function uploadToGcs(file: File, uploadURL: string): Promise<void> {
   }
 }
 
+function computeCnss(quarterlyCA: number): number {
+  if (quarterlyCA <= 0) return 0;
+  const ir = quarterlyCA * 0.01;
+  if (ir <= 125) return 300;
+  if (ir <= 250) return 390;
+  if (ir <= 625) return 570;
+  if (ir <= 1250) return 720;
+  if (ir <= 2500) return 1050;
+  if (ir <= 6250) return 1500;
+  if (ir <= 12500) return 2250;
+  return 3600;
+}
+
 function isImageFile(fileName: string): boolean {
   return /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(fileName);
 }
@@ -138,7 +151,7 @@ export function Declarations() {
     }
   };
 
-  const { data: declarations = [], isLoading } = useListDeclarations(
+  const { data: declarationsRaw = [], isLoading } = useListDeclarations(
     { year: selectedYear },
     {
       query: {
@@ -147,6 +160,11 @@ export function Declarations() {
       },
     }
   );
+
+  const declarations = declarationsRaw.map(d => ({
+    ...d,
+    cnssAPayer: computeCnss(Number(d.totalMontant))
+  }));
 
   const fetchDocuments = useCallback(async () => {
     setDocsLoading(true);
@@ -437,10 +455,63 @@ export function Declarations() {
 
           <div className="mt-4 mb-8 grid grid-cols-1 md:grid-cols-2 gap-4 print:hidden">
             <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
-              <p className="text-sm font-semibold text-emerald-800">Note sur la CNSS</p>
-              <p className="text-xs text-emerald-700 mt-1">
-                Le total CNSS correspond a la somme des montants CNSS des factures du/des trimestre(s) affiche(s).
+              <p className="text-sm font-semibold text-emerald-800 mb-2">Note sur la CNSS</p>
+              <p className="text-xs text-emerald-700 mb-3">
+                La cotisation CNSS est calculée automatiquement par trimestre en fonction de votre <strong>IR trimestriel (1% du CA de formation)</strong> :
               </p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-[11px] text-emerald-800 border-collapse">
+                  <thead>
+                    <tr className="border-b border-emerald-200 text-left font-semibold">
+                      <th className="pb-1 pr-2">Tranche</th>
+                      <th className="pb-1 px-2 text-right">IR trimestriel</th>
+                      <th className="pb-1 pl-2 text-right">Cotisation / Trim.</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-emerald-100/50">
+                    <tr>
+                      <td className="py-0.5 pr-2">T1</td>
+                      <td className="py-0.5 px-2 text-right">0 à 125 DH</td>
+                      <td className="py-0.5 pl-2 text-right font-semibold">300 MAD</td>
+                    </tr>
+                    <tr>
+                      <td className="py-0.5 pr-2">T2</td>
+                      <td className="py-0.5 px-2 text-right">&gt; 125 à 250 DH</td>
+                      <td className="py-0.5 pl-2 text-right font-semibold">390 MAD</td>
+                    </tr>
+                    <tr>
+                      <td className="py-0.5 pr-2">T3</td>
+                      <td className="py-0.5 px-2 text-right">&gt; 250 à 625 DH</td>
+                      <td className="py-0.5 pl-2 text-right font-semibold">570 MAD</td>
+                    </tr>
+                    <tr>
+                      <td className="py-0.5 pr-2">T4</td>
+                      <td className="py-0.5 px-2 text-right">&gt; 625 à 1 250 DH</td>
+                      <td className="py-0.5 pl-2 text-right font-semibold">720 MAD</td>
+                    </tr>
+                    <tr>
+                      <td className="py-0.5 pr-2">T5</td>
+                      <td className="py-0.5 px-2 text-right">&gt; 1 250 à 2 500 DH</td>
+                      <td className="py-0.5 pl-2 text-right font-semibold">1 050 MAD</td>
+                    </tr>
+                    <tr>
+                      <td className="py-0.5 pr-2">T6</td>
+                      <td className="py-0.5 px-2 text-right">&gt; 2 500 à 6 250 DH</td>
+                      <td className="py-0.5 pl-2 text-right font-semibold">1 500 MAD</td>
+                    </tr>
+                    <tr>
+                      <td className="py-0.5 pr-2">T7</td>
+                      <td className="py-0.5 px-2 text-right">&gt; 6 250 à 12 500 DH</td>
+                      <td className="py-0.5 pl-2 text-right font-semibold">2 250 MAD</td>
+                    </tr>
+                    <tr>
+                      <td className="py-0.5 pr-2">T8</td>
+                      <td className="py-0.5 px-2 text-right">Plus de 12 500 DH</td>
+                      <td className="py-0.5 pl-2 text-right font-semibold">3 600 MAD</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
 
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">

@@ -322,13 +322,11 @@ export function Invoices() {
       "Statut",
       "Date Déclaration",
       "Impôt à payer",
-      "Tranche CNSS",
     ];
 
     const rows = invoices.map((inv) => {
       const montant = Number.isFinite(Number(inv.montantDh)) ? Number(inv.montantDh) : 0;
       const impot = inv.impotAPayer ?? montant * IMPOTS_RATE;
-      const cnss = inv.cnss ?? montant * CNSS_RATE;
       return [
         inv.trimestre ?? "",
         inv.dateFormation ?? "",
@@ -345,13 +343,11 @@ export function Invoices() {
         STATUT_LABELS[inv.statut as Statut] ?? inv.statut ?? "",
         inv.dateDeclaration ?? "",
         formatDHSmall(impot),
-        formatDHSmall(cnss),
       ];
     });
 
     const totalMontant = invoices.reduce((sum, inv) => sum + Number(inv.montantDh || 0), 0);
     const totalImpot = invoices.reduce((sum, inv) => sum + (inv.impotAPayer ?? Number(inv.montantDh) * IMPOTS_RATE), 0);
-    const totalCnss = invoices.reduce((sum, inv) => sum + (inv.cnss ?? Number(inv.montantDh) * CNSS_RATE), 0);
 
     const titleRow = ["Registre des Factures"];
     const metaRow = [`${invoices.length} facture(s) exportée(s)`];
@@ -371,7 +367,6 @@ export function Invoices() {
       "",
       "",
       formatDHSmall(totalImpot),
-      formatDHSmall(totalCnss),
     ];
 
     const sheetData = [titleRow, metaRow, [], headers, ...rows, totalRow];
@@ -392,7 +387,6 @@ export function Invoices() {
       { wch: 12 }, // Statut
       { wch: 16 }, // Date declaration
       { wch: 14 }, // Impot
-      { wch: 14 }, // CNSS
     ];
 
     // Header row style (requested: #d0d0d0)
@@ -799,7 +793,7 @@ export function Invoices() {
   if (isAuthLoading) return null;
   if (!user) return <Redirect to="/" />;
 
-  const totalCols = isAdmin ? 18 : 17;
+  const totalCols = isAdmin ? 17 : 16;
 
   return (
     <Layout>
@@ -937,7 +931,6 @@ export function Invoices() {
                 </th>
                 <th className="px-3 py-3 text-left">Date Déclaration</th>
                 <th className="px-3 py-3 text-right text-indigo-700">impôt à payer</th>
-                <th className="px-3 py-3 text-right text-emerald-700">Tranche CNSS</th>
                 <th className="px-3 py-3 text-center" title="Document Word (.docx)">
                   Facture
                 </th>
@@ -991,9 +984,6 @@ export function Invoices() {
                       <td className="px-3 py-2 text-xs">{inv.dateDeclaration ?? "-"}</td>
                       <td className="px-3 py-2 text-right text-xs text-indigo-700 font-bold" data-testid={`impot-${inv.id}`}>
                         {formatDHSmall(impot)}
-                      </td>
-                      <td className="px-3 py-2 text-right text-xs text-emerald-700 font-bold" data-testid={`cnss-${inv.id}`}>
-                        {formatDHSmall(inv.cnss ?? montant * CNSS_RATE)}
                       </td>
                       <td className="px-3 py-2 text-center">
                         {hasDocxUrl(inv.invoiceDocxUrl) ? (
@@ -1062,9 +1052,6 @@ export function Invoices() {
                   <td colSpan={5} />
                   <td className="px-3 py-2 text-right text-xs text-indigo-700 font-bold">
                     {formatDHSmall(invoices.reduce((sum, inv) => sum + (inv.impotAPayer ?? Number(inv.montantDh) * IMPOTS_RATE), 0))}
-                  </td>
-                  <td className="px-3 py-2 text-right text-xs text-emerald-700 font-bold">
-                    {formatDHSmall(invoices.reduce((sum, inv) => sum + (inv.cnss ?? Number(inv.montantDh) * CNSS_RATE), 0))}
                   </td>
                   <td className="px-3 py-2" />
                   {isAdmin && <td className="px-3 py-2" />}

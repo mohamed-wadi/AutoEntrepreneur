@@ -19,7 +19,18 @@ import {
 } from "@/components/ui/select";
 import { Loader2, TrendingUp, FileText, AlertCircle, Building2, Landmark, BellRing, ShieldAlert, AlertTriangle } from "lucide-react";
 
-const CNSS_RATE = 0.0226;
+function computeCnss(quarterlyCA: number): number {
+  if (quarterlyCA <= 0) return 0;
+  const ir = quarterlyCA * 0.01;
+  if (ir <= 125) return 300;
+  if (ir <= 250) return 390;
+  if (ir <= 625) return 570;
+  if (ir <= 1250) return 720;
+  if (ir <= 2500) return 1050;
+  if (ir <= 6250) return 1500;
+  if (ir <= 12500) return 2250;
+  return 3600;
+}
 
 // ─── Plafond réglementaire auto-entrepreneur ───────────────────────────────
 const PLAFOND_GLOBAL = 200_000;      // 200 000 DH / an
@@ -81,7 +92,7 @@ export function Dashboard() {
   const byCabinet = stats?.byCabinet ?? [];
   const currentQuarterData = byTrimestre.find((t) => t.trimestre === currentTrimestreLabel);
   const currentImpots = currentQuarterData ? currentQuarterData.totalMontant * 0.01 : 0;
-  const currentCnss = currentQuarterData ? currentQuarterData.totalMontant * CNSS_RATE : 0;
+  const currentCnss = currentQuarterData ? computeCnss(currentQuarterData.totalMontant) : 0;
   const declarationQuarter = getCurrentQuarter(now.getMonth());
   const declarationDeadline = getDeclarationDeadline(now.getFullYear(), declarationQuarter);
   const daysLeft = Math.ceil((declarationDeadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
